@@ -1,0 +1,30 @@
+.sidebar {
+  background-color: #1e2122;
+  border-right: 1px solid #313244;
+}
+
+.tab-row {
+  border-radius: 6px;
+  padding: 2px 4px;
+  color: #cdd6f4;
+}
+
+.tab-row:hover {
+  background-color: #2f3132;
+}
+
+.active-tab {
+  background-color: #464748;
+}
+
+.new-tab-btn {
+  background-color: #1e2122;
+  border: none;
+  color: #cdd6f4;
+  font-size: 13px;
+}
+
+.new-tab-btn:hover {
+  background-color: #313335;
+  border: 6px;
+}
