@@ -1,11 +1,15 @@
 .sidebar {
   background-color: #1e2122;
   border-right: 1px solid #313244;
+  width: 190px;
+  max-width: 190px;
+  min-width: 190px;
+  overflow: hidden;
 }
 
 .tab-row {
-  border-radius: 6px;
-  padding: 2px 4px;
+  border-radius: 15px;
+  padding: 4px 8px;
   color: #cdd6f4;
 }
 
@@ -22,6 +26,7 @@
   border: none;
   color: #cdd6f4;
   font-size: 13px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .new-tab-btn:hover {
