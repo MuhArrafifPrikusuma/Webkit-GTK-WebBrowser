@@ -1,14 +1,15 @@
 .sidebar {
   background-color: #1e2122;
-  border-right: 1px solid #313244;
+  border: 1px solid #313244;
   width: 190px;
   max-width: 190px;
   min-width: 190px;
+  border-radius: 4px;
   overflow: hidden;
 }
 
 .tab-row {
-  border-radius: 15px;
+  border-radius: 8px;
   padding: 4px 8px;
   color: #cdd6f4;
 }

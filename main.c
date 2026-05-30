@@ -266,10 +266,12 @@ static GtkWidget *makeTabRow(AppState *state, int index) {
   // FIX: hover style doesn't apply to margin but there is no fking padding
   // create a new box for the tab
   GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 16);
+  gtk_widget_add_css_class(row, "tab-row");
   gtk_widget_set_margin_start(row, 8);
   gtk_widget_set_margin_end(row, 8);
-  gtk_widget_set_margin_top(row, 8);
-  gtk_widget_set_margin_bottom(row, 8);
+  gtk_widget_set_margin_top(row, 4);
+  gtk_widget_set_margin_bottom(row, 4);
+  gtk_widget_set_halign(row, GTK_ALIGN_FILL);
 
   // TODO: load the actualy favicon instead of placeholder
   tab->favicon = GTK_IMAGE(gtk_image_new_from_icon_name("text-html"));
@@ -391,7 +393,7 @@ static void activate(GtkApplication *app, gpointer userData) {
   gtk_widget_add_css_class(newTabBtn, "new-tab-btn");
   gtk_widget_set_margin_start(newTabBtn, 8);
   gtk_widget_set_margin_end(newTabBtn, 8);
-  gtk_widget_set_halign(newTabBtn, GTK_ALIGN_START);
+  gtk_widget_set_halign(newTabBtn, GTK_ALIGN_FILL);
   gtk_box_append(GTK_BOX(sidebar), newTabBtn);
 
   // keeps uri and title current and restore scroll position
@@ -432,7 +434,6 @@ static void activate(GtkApplication *app, gpointer userData) {
 
   // create a new tab on button click
   g_signal_connect(newTabBtn, "clicked", G_CALLBACK(onNewTab), state);
-  // add the starting tab
   addNewTab(state, "https://search.brave.com");
 
   // set overlay as window content and make the window visible
