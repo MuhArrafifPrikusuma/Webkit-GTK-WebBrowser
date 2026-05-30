@@ -1,10 +1,9 @@
 #include "tabs.h"
-#include "../webview/webview.h"
+#include "glib-object.h"
 #include "glib.h"
 #include "jsc/jsc.h"
 #include "pango/pango-layout.h"
 #include <gtk/gtk.h>
-#include <stdlib.h>
 #include <webkit/webkit.h>
 
 // automatically create buffer space for cache path
@@ -81,7 +80,6 @@ static void onTabClick(GtkGestureClick *gesture, int nPress, double x, double y,
 GtkWidget *makeTabRow(AppState *state, int index) {
   Tab *tab = g_ptr_array_index(state->tabs, index);
 
-  // FIX: hover style doesn't apply to margin but there is no fking padding
   // create a new box for the tab
   GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 16);
   gtk_widget_add_css_class(row, "tab-row");
@@ -113,7 +111,8 @@ GtkWidget *makeTabRow(AppState *state, int index) {
   TabClickData *d = g_new(TabClickData, 1);
   d->state = state;
   d->index = index;
-  g_signal_connect(click, "pressed", G_CALLBACK(onTabClick), d);
+  g_signal_connect_data(click, "pressed", G_CALLBACK(onTabClick), d,
+                        (GClosureNotify)g_free, G_CONNECT_DEFAULT);
   gtk_widget_add_controller(row, GTK_EVENT_CONTROLLER(click));
   // cursor show hand icon
   gtk_widget_set_cursor_from_name(row, "pointer");

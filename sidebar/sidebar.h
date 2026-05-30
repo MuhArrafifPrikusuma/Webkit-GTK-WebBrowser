@@ -1,7 +1,6 @@
 #ifndef SIDEBAR_H
 #define SIDEBAR_H
 
-#include "../state.h"
 #include <gtk/gtk.h>
 
 void onMouseMotion(GtkEventControllerMotion *motion, double x, double y,

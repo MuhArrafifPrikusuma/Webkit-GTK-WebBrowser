@@ -27,7 +27,7 @@ typedef struct {
 /*
  * tabList: Hold all tabs rows
  * webView: render websites
- * tabs: Glib dynamic arrays to store tabs which start from pointer at index 0
+ * tabs: Glib is a generic pointer which act as array to tabs
  * active: integer index of currently selected tab
  * nextTabId; increment id
  */
