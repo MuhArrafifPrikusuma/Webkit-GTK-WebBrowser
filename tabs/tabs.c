@@ -157,15 +157,16 @@ GtkWidget *makeTabRow(AppState *state, int index) {
   gtk_label_set_ellipsize(tab->tabLabel, PANGO_ELLIPSIZE_END);
   gtk_label_set_xalign(tab->tabLabel, 0.0f);
   gtk_label_set_width_chars(tab->tabLabel, 5);
-  gtk_label_set_max_width_chars(tab->tabLabel, 15);
+  gtk_label_set_max_width_chars(tab->tabLabel, 12);
   // make sure it doesn't go beyond limit and append it to row
   gtk_widget_set_hexpand(GTK_WIDGET(tab->tabLabel), FALSE);
   gtk_box_append(GTK_BOX(row), GTK_WIDGET(tab->tabLabel));
 
+  // TODO: make it actually work and fix the row styling, IS GARBAAGE
   tab->closeBtn = gtk_button_new_from_icon_name("window-close-symbolic");
   gtk_widget_add_css_class(tab->closeBtn, "close-tab");
   gtk_image_set_pixel_size(
-      GTK_IMAGE(gtk_button_get_child(GTK_BUTTON(tab->closeBtn))), 8);
+      GTK_IMAGE(gtk_button_get_child(GTK_BUTTON(tab->closeBtn))), 12);
   gtk_widget_set_halign(tab->closeBtn, GTK_ALIGN_END);
   gtk_widget_set_valign(tab->closeBtn, GTK_ALIGN_CENTER);
   gtk_widget_set_opacity(tab->closeBtn, 0.0);
@@ -174,8 +175,6 @@ GtkWidget *makeTabRow(AppState *state, int index) {
   GtkWidget *overlay = gtk_overlay_new();
   gtk_overlay_set_child(GTK_OVERLAY(overlay), row);
   gtk_overlay_add_overlay(GTK_OVERLAY(overlay), tab->closeBtn);
-  gtk_overlay_set_measure_overlay(GTK_OVERLAY(overlay), tab->closeBtn, FALSE);
-  gtk_overlay_set_clip_overlay(GTK_OVERLAY(overlay), tab->closeBtn, TRUE);
 
   GtkEventController *hoverctrl = gtk_event_controller_motion_new();
   g_signal_connect(hoverctrl, "motion", G_CALLBACK(onRowEnter), tab->closeBtn);
@@ -195,7 +194,7 @@ GtkWidget *makeTabRow(AppState *state, int index) {
   gtk_widget_set_cursor_from_name(row, "pointer");
 
   tab->tabRow = row;
-  return row;
+  return overlay;
 }
 
 typedef struct {
