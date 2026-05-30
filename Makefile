@@ -10,11 +10,11 @@ SRCS = main.c \
 
 OBJS = $(SRCS:.c=.o)
 
-browser: $(OBJS)
-	$(CC) $(OBJS) $(LIBS) -o browser
+webkit : $(OBJS)
+	$(CC) $(OBJS) $(LIBS) -o webkit
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJS) browser
+	rm -f $(OBJS) webkit
