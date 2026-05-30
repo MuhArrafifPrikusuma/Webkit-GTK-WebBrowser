@@ -1,8 +1,13 @@
 #include "tabs.h"
+#include "cairo.h"
+#include "gdk/gdk.h"
 #include "glib-object.h"
 #include "glib.h"
+#include "glibconfig.h"
+#include "gtk/gtkshortcut.h"
 #include "jsc/jsc.h"
 #include "pango/pango-layout.h"
+#include <cairo.h>
 #include <gtk/gtk.h>
 #include <webkit/webkit.h>
 
@@ -61,6 +66,54 @@ void deleteTabFromDisk(int id) {
   g_free(path);
 }
 
+void onRowEnter(GtkEventControllerMotion *motion, double x, double y,
+                gpointer userData) {
+  GtkWidget *closeBtn = GTK_WIDGET(userData);
+
+  gtk_widget_set_opacity(closeBtn, 1.0);
+}
+
+void onRowLeave(GtkEventControllerMotion *motion, gpointer userData) {
+  GtkWidget *closeBtn = GTK_WIDGET(userData);
+
+  gtk_widget_set_opacity(closeBtn, 0.0);
+}
+
+// FIX: this shit doesn't work
+// static void onFaviconChange(WebKitWebView *webView, GParamSpec *ps,
+//                            gpointer userData) {
+//  AppState *state = userData;
+//  if (state->active < 0 || state->active >= state->tabs->len)
+//    return;
+//
+//  Tab *tab = g_ptr_array_index(state->tabs, state->active);
+//  cairo_surface_t *surface =
+//      (cairo_surface_t *)webkit_web_view_get_favicon(webView);
+//
+//  if (surface && cairo_surface_get_type(surface) == CAIRO_SURFACE_TYPE_IMAGE)
+//  {
+//    int width = cairo_image_surface_get_width(surface);
+//    int height = cairo_image_surface_get_height(surface);
+//    int stride = cairo_image_surface_get_stride(surface);
+//    unsigned char *data = cairo_image_surface_get_data(surface);
+//
+//    if (width > 0 && height > 0 && data != NULL) {
+//      GBytes *bytes = g_bytes_new_with_free_func(
+//          data, height * stride, (GDestroyNotify)cairo_surface_destroy,
+//          cairo_surface_reference(surface));
+//      GdkTexture *texture = gdk_memory_texture_new(
+//          width, height, GDK_MEMORY_DEFAULT, bytes, stride);
+//      if (texture) {
+//        gtk_image_set_from_paintable(tab->favicon, GDK_PAINTABLE(texture));
+//        gtk_image_set_pixel_size(tab->favicon, 16);
+//
+//        g_object_unref(texture);
+//      }
+//      g_bytes_unref(bytes);
+//    }
+//  }
+//}
+
 /*
  * TABS UI CREATION
  */
@@ -81,20 +134,24 @@ GtkWidget *makeTabRow(AppState *state, int index) {
   Tab *tab = g_ptr_array_index(state->tabs, index);
 
   // create a new box for the tab
-  GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 16);
+  GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
   gtk_widget_add_css_class(row, "tab-row");
   gtk_widget_set_margin_start(row, 8);
   gtk_widget_set_margin_end(row, 8);
   gtk_widget_set_margin_top(row, 4);
   gtk_widget_set_margin_bottom(row, 4);
   gtk_widget_set_halign(row, GTK_ALIGN_FILL);
+  gtk_widget_set_hexpand(row, FALSE);
 
   // TODO: load the actualy favicon instead of placeholder
   tab->favicon = GTK_IMAGE(gtk_image_new_from_icon_name("text-html"));
   gtk_image_set_pixel_size(tab->favicon, 16);
   gtk_box_append(GTK_BOX(row), GTK_WIDGET(tab->favicon));
 
+  // FIX:
+  //  g_signal_connect(state->webView, "notify::favicon",
   // Set the label to new tab and use PANGO_ELLIPSIZE_END to truncate text with
+
   // ... if text is abov max chars
   tab->tabLabel = GTK_LABEL(gtk_label_new("New Tab"));
   gtk_label_set_ellipsize(tab->tabLabel, PANGO_ELLIPSIZE_END);
@@ -104,6 +161,26 @@ GtkWidget *makeTabRow(AppState *state, int index) {
   // make sure it doesn't go beyond limit and append it to row
   gtk_widget_set_hexpand(GTK_WIDGET(tab->tabLabel), FALSE);
   gtk_box_append(GTK_BOX(row), GTK_WIDGET(tab->tabLabel));
+
+  tab->closeBtn = gtk_button_new_from_icon_name("window-close-symbolic");
+  gtk_widget_add_css_class(tab->closeBtn, "close-tab");
+  gtk_image_set_pixel_size(
+      GTK_IMAGE(gtk_button_get_child(GTK_BUTTON(tab->closeBtn))), 8);
+  gtk_widget_set_halign(tab->closeBtn, GTK_ALIGN_END);
+  gtk_widget_set_valign(tab->closeBtn, GTK_ALIGN_CENTER);
+  gtk_widget_set_opacity(tab->closeBtn, 0.0);
+  gtk_box_append(GTK_BOX(row), tab->closeBtn);
+
+  GtkWidget *overlay = gtk_overlay_new();
+  gtk_overlay_set_child(GTK_OVERLAY(overlay), row);
+  gtk_overlay_add_overlay(GTK_OVERLAY(overlay), tab->closeBtn);
+  gtk_overlay_set_measure_overlay(GTK_OVERLAY(overlay), tab->closeBtn, FALSE);
+  gtk_overlay_set_clip_overlay(GTK_OVERLAY(overlay), tab->closeBtn, TRUE);
+
+  GtkEventController *hoverctrl = gtk_event_controller_motion_new();
+  g_signal_connect(hoverctrl, "motion", G_CALLBACK(onRowEnter), tab->closeBtn);
+  g_signal_connect(hoverctrl, "leave", G_CALLBACK(onRowLeave), tab->closeBtn);
+  gtk_widget_add_controller(row, hoverctrl);
 
   // trigger click on row area
   GtkGesture *click = gtk_gesture_click_new();
@@ -160,6 +237,7 @@ static void afterSaveSwitch(GObject *wv, GAsyncResult *result,
   gtk_label_set_text(tab->tabLabel, tab->title ? tab->title : "New Tab");
   if (tab->uri && g_strcmp0(tab->uri, "about:blank") != 0)
     webkit_web_view_load_uri(WEBKIT_WEB_VIEW(state->webView), tab->uri);
+  // FIX: onFaviconChange(WEBKIT_WEB_VIEW(state->webView), NULL, state);
 }
 
 void switchTab(AppState *state, int index) {

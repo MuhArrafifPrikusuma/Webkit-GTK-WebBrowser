@@ -21,6 +21,7 @@ typedef struct {
   GtkWidget *tabRow;
   GtkLabel *tabLabel;
   GtkImage *favicon;
+  GtkWidget *closeBtn;
   int id;
 } Tab;
 

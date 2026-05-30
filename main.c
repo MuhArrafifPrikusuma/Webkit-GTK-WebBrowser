@@ -2,6 +2,7 @@
 #include "sidebar/sidebar.h"
 #include "state.h"
 #include "tabs/tabs.h"
+#include "toolbar/toolbar.h"
 #include "webview/webview.h"
 #include <gtk/gtk.h>
 #include <webkit/webkit.h>
@@ -29,6 +30,9 @@ static void activate(GtkApplication *app, gpointer userData) {
   gtk_widget_add_css_class(sidebar, "sidebar");
   gtk_widget_set_margin_bottom(sidebar, 0);
   gtk_widget_set_margin_top(sidebar, 0);
+
+  GtkWidget *toolbar = makeToolbar(state);
+  gtk_box_append(GTK_BOX(sidebar), toolbar);
 
   // append tabList to sidebar
   state->tabList = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);

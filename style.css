@@ -34,3 +34,38 @@
   background-color: #313335;
   border: 6px;
 }
+
+.toolbar {
+  border-bottom: 1px solid #313244;
+  padding-bottom: 4px;
+}
+
+.nav-btn {
+  background: none;
+  border: none;
+  color: #cdd6f4;
+  padding: 4px;
+  border-radius: 6px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.nav-btn:hover {
+  background-color: #313244;
+}
+
+.close-tab {
+  background: none;
+  border: none;
+  color: #cdd6f4;
+  padding: 0;
+  margin: 0;
+  min-width: 12px;
+  height: 2px;
+  border-radius: 4px;
+}
+
+.close-tab:hover {
+  background-color: #f38ba8;
+  color: #1e1e2e;
+}
