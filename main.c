@@ -1,5 +1,6 @@
 #include "css/css.h"
 #include "glib-object.h"
+#include "search/search.h"
 #include "sidebar/sidebar.h"
 #include "state.h"
 #include "tabs/tabs.h"
@@ -33,6 +34,7 @@ static void activate(GtkApplication *app, gpointer userData) {
   gtk_widget_set_margin_top(sidebar, 0);
 
   GtkWidget *toolbar = makeToolbar(state);
+  state->searchBar = g_object_get_data(G_OBJECT(toolbar), "search-bar");
   gtk_box_append(GTK_BOX(sidebar), toolbar);
 
   GtkWidget *newTabBtn = gtk_button_new_with_label("+ New Tab");
@@ -47,6 +49,7 @@ static void activate(GtkApplication *app, gpointer userData) {
   state->tabList = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
   gtk_box_append(GTK_BOX(sidebar), state->tabList);
 
+  // for magnifier from tabs
   GtkEventController *magCtrl = gtk_event_controller_motion_new();
   Magnifier *magData = makeMagData(state, state->tabList);
 

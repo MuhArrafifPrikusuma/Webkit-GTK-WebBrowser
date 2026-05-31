@@ -43,6 +43,8 @@
 }
 
 .toolbar {
+  max-width: 180px;
+  width: 180px;
   border-bottom: 1px solid #313244;
   padding-bottom: 4px;
 }
@@ -71,4 +73,23 @@
   min-height: 12px;
   border-radius: 50%;
   /* circular button */
+}
+
+.uri-bar {
+  background-color: #2a2b2c;
+  color: #cdd6f4;
+  border: 1px solid #3a3b3c;
+  border-radius: 12px;
+  padding: 2px 4px;
+  font-size: 11px;
+  min-height: 0;
+}
+
+.uri-bar:focus {
+  border-color: #89b4fa;
+  background-color: #313244;
+}
+
+.uri-bar text {
+  background-color: transparent;
 }

@@ -1,4 +1,5 @@
 #include "tabs.h"
+#include "../search/search.h"
 #include "cairo.h"
 #include "gdk/gdk.h"
 #include "glib-object.h"
@@ -13,6 +14,7 @@
 #include <cairo.h>
 #include <gtk/gtk.h>
 #include <math.h>
+#include <stdio.h>
 #include <webkit/webkit.h>
 
 // automatically create buffer space for cache path
@@ -72,7 +74,7 @@ void deleteTabFromDisk(int id) {
 
 void closeTab(AppState *state, int index) {
   // don't delete if only 1 tab left
-  if (state->tabs->len <= 1) {
+  if (state->tabs->len <= 1 || state->active == 0) {
     return;
   }
 
@@ -98,6 +100,7 @@ void closeTab(AppState *state, int index) {
   gtk_widget_add_css_class(next->rowBox, "active-tab");
   if (next->uri && g_strcmp0(next->uri, "about:blank") != 0)
     webkit_web_view_load_uri(WEBKIT_WEB_VIEW(state->webView), next->uri);
+  printf("tab %d is active", state->active);
 }
 
 // allocate memory for Magnifier logic
@@ -352,6 +355,14 @@ static void afterSaveSwitch(GObject *wv, GAsyncResult *result,
   gtk_label_set_text(tab->tabLabel, tab->title ? tab->title : "New Tab");
   if (tab->uri && g_strcmp0(tab->uri, "about:blank") != 0)
     webkit_web_view_load_uri(WEBKIT_WEB_VIEW(state->webView), tab->uri);
+
+  if (state->searchBar) {
+    UriBarData *d =
+        g_object_get_data(G_OBJECT(state->searchBar), "uri-bar-data");
+    if (d) {
+      syncSearch(d, tab->uri);
+    }
+  }
   // FIX: onFaviconChange(WEBKIT_WEB_VIEW(state->webView), NULL, state);
 }
 
