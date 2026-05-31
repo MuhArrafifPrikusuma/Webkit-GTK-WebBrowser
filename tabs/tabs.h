@@ -10,5 +10,6 @@ void deleteTabFromDisk(int id);
 GtkWidget *makeTabRow(AppState *state, int index);
 void switchTab(AppState *state, int index);
 void addNewTab(AppState *state, const char *uri);
+void closeTab(AppState *state, int index);
 
 #endif

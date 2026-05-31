@@ -19,6 +19,7 @@ typedef struct {
   char *title;
   double scrollY;
   GtkWidget *tabRow;
+  GtkWidget *rowBox;
   GtkLabel *tabLabel;
   GtkImage *favicon;
   GtkWidget *closeBtn;
