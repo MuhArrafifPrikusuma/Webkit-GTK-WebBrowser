@@ -4,6 +4,7 @@
 #include "glib-object.h"
 #include "glib.h"
 #include "glibconfig.h"
+#include "gtk/gtkrevealer.h"
 #include "gtk/gtkshortcut.h"
 #include "jsc/jsc.h"
 #include "pango/pango-layout.h"
@@ -66,17 +67,24 @@ void deleteTabFromDisk(int id) {
   g_free(path);
 }
 
-void onRowEnter(GtkEventControllerMotion *motion, double x, double y,
-                gpointer userData) {
-  GtkWidget *closeBtn = GTK_WIDGET(userData);
-
-  gtk_widget_set_opacity(closeBtn, 1.0);
+static void onRowEnter(GtkEventControllerMotion *motion, double x, double y,
+                       gpointer userData) {
+  GtkRevealer *revealer = GTK_REVEALER(userData);
+  GtkWidget *overlay =
+      gtk_event_controller_get_widget(GTK_EVENT_CONTROLLER(motion));
+  gboolean isOpen = gtk_revealer_get_reveal_child(revealer);
+  int overlayWidth = gtk_widget_get_width(overlay);
+  if (x >= overlayWidth - 30) {
+    gtk_revealer_set_reveal_child(revealer, TRUE);
+  } else {
+    gtk_revealer_set_reveal_child(revealer, FALSE);
+  }
 }
 
-void onRowLeave(GtkEventControllerMotion *motion, gpointer userData) {
-  GtkWidget *closeBtn = GTK_WIDGET(userData);
+static void onRowLeave(GtkEventControllerMotion *motion, gpointer userData) {
+  GtkRevealer *revealer = GTK_REVEALER(userData);
 
-  gtk_widget_set_opacity(closeBtn, 0.0);
+  gtk_revealer_set_reveal_child(revealer, FALSE);
 }
 
 // FIX: this shit doesn't work
@@ -135,7 +143,6 @@ GtkWidget *makeTabRow(AppState *state, int index) {
 
   // create a new box for the tab
   GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
-  gtk_widget_add_css_class(row, "tab-row");
   gtk_widget_set_margin_start(row, 8);
   gtk_widget_set_margin_end(row, 8);
   gtk_widget_set_margin_top(row, 4);
@@ -167,19 +174,30 @@ GtkWidget *makeTabRow(AppState *state, int index) {
   gtk_widget_add_css_class(tab->closeBtn, "close-tab");
   gtk_image_set_pixel_size(
       GTK_IMAGE(gtk_button_get_child(GTK_BUTTON(tab->closeBtn))), 12);
+
   gtk_widget_set_halign(tab->closeBtn, GTK_ALIGN_END);
   gtk_widget_set_valign(tab->closeBtn, GTK_ALIGN_CENTER);
-  gtk_widget_set_opacity(tab->closeBtn, 0.0);
-  gtk_box_append(GTK_BOX(row), tab->closeBtn);
+
+  GtkWidget *revealer = gtk_revealer_new();
+  gtk_revealer_set_transition_type(GTK_REVEALER(revealer),
+                                   GTK_REVEALER_TRANSITION_TYPE_SLIDE_LEFT);
+  gtk_revealer_set_transition_duration(GTK_REVEALER(revealer), 200);
+  gtk_revealer_set_child(GTK_REVEALER(revealer), tab->closeBtn);
+  gtk_revealer_set_reveal_child(GTK_REVEALER(revealer), FALSE);
+  gtk_widget_set_halign(revealer, GTK_ALIGN_END);
+  gtk_widget_set_valign(revealer, GTK_ALIGN_CENTER);
 
   GtkWidget *overlay = gtk_overlay_new();
+  gtk_widget_add_css_class(row, "tab-row");
   gtk_overlay_set_child(GTK_OVERLAY(overlay), row);
-  gtk_overlay_add_overlay(GTK_OVERLAY(overlay), tab->closeBtn);
+  gtk_overlay_add_overlay(GTK_OVERLAY(overlay), revealer);
+  gtk_overlay_set_measure_overlay(GTK_OVERLAY(overlay), revealer, FALSE);
+  gtk_overlay_set_clip_overlay(GTK_OVERLAY(overlay), revealer, FALSE);
 
   GtkEventController *hoverctrl = gtk_event_controller_motion_new();
-  g_signal_connect(hoverctrl, "motion", G_CALLBACK(onRowEnter), tab->closeBtn);
-  g_signal_connect(hoverctrl, "leave", G_CALLBACK(onRowLeave), tab->closeBtn);
-  gtk_widget_add_controller(row, hoverctrl);
+  g_signal_connect(hoverctrl, "motion", G_CALLBACK(onRowEnter), revealer);
+  g_signal_connect(hoverctrl, "leave", G_CALLBACK(onRowLeave), revealer);
+  gtk_widget_add_controller(overlay, hoverctrl);
 
   // trigger click on row area
   GtkGesture *click = gtk_gesture_click_new();
@@ -191,9 +209,9 @@ GtkWidget *makeTabRow(AppState *state, int index) {
                         (GClosureNotify)g_free, G_CONNECT_DEFAULT);
   gtk_widget_add_controller(row, GTK_EVENT_CONTROLLER(click));
   // cursor show hand icon
-  gtk_widget_set_cursor_from_name(row, "pointer");
+  gtk_widget_set_cursor_from_name(overlay, "pointer");
 
-  tab->tabRow = row;
+  tab->tabRow = overlay;
   return overlay;
 }
 
