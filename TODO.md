@@ -7,3 +7,7 @@
   - Add a way to show page loading
   - Add adblockers and tracker blockers
   - Add Shortcuts and keybinds settings
+
+# FIX
+  
+  - Closing Tabs sometimes crashes the browser

@@ -1,4 +1,5 @@
 #include "css/css.h"
+#include "glib-object.h"
 #include "sidebar/sidebar.h"
 #include "state.h"
 #include "tabs/tabs.h"
@@ -46,13 +47,20 @@ static void activate(GtkApplication *app, gpointer userData) {
   state->tabList = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
   gtk_box_append(GTK_BOX(sidebar), state->tabList);
 
+  GtkEventController *magCtrl = gtk_event_controller_motion_new();
+  Magnifier *magData = makeMagData(state, state->tabList);
+
+  g_signal_connect(magCtrl, "motion", G_CALLBACK(onMagMotion), magData);
+  g_signal_connect(magCtrl, "leave", G_CALLBACK(onMagLeave), magData);
+  gtk_widget_add_controller(state->tabList, magCtrl);
+
   // keeps uri and title current and restore scroll position
   state->webView = webkit_web_view_new();
   g_signal_connect(state->webView, "notify::uri", G_CALLBACK(onUriChange),
                    state);
   g_signal_connect(state->webView, "notify::title", G_CALLBACK(onTitleChange),
                    state);
-  g_signal_connect(state->webView, "load-change", G_CALLBACK(onLoadChange),
+  g_signal_connect(state->webView, "load-changed", G_CALLBACK(onLoadChange),
                    state);
 
   // reveal sidebar
