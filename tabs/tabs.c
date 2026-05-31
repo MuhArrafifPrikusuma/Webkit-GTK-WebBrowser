@@ -4,12 +4,15 @@
 #include "glib-object.h"
 #include "glib.h"
 #include "glibconfig.h"
+#include "graphene.h"
+#include "gsk/gsk.h"
 #include "gtk/gtkrevealer.h"
 #include "gtk/gtkshortcut.h"
 #include "jsc/jsc.h"
 #include "pango/pango-layout.h"
 #include <cairo.h>
 #include <gtk/gtk.h>
+#include <math.h>
 #include <webkit/webkit.h>
 
 // automatically create buffer space for cache path
@@ -65,6 +68,86 @@ void deleteTabFromDisk(int id) {
   char *path = tabCachePath(id);
   remove(path);
   g_free(path);
+}
+
+void closeTab(AppState *state, int index) {
+  // don't delete if only 1 tab left
+  if (state->tabs->len <= 1) {
+    return;
+  }
+
+  Tab *tab = g_ptr_array_index(state->tabs, index);
+
+  GtkWidget *parent = gtk_widget_get_parent(tab->tabRow);
+  if (parent)
+    gtk_box_remove(GTK_BOX(parent), tab->tabRow);
+
+  deleteTabFromDisk(tab->id);
+
+  g_free(tab->uri);
+  g_free(tab->title);
+  g_free(tab);
+
+  g_ptr_array_remove_index(state->tabs, index);
+
+  if (state->active >= state->tabs->len)
+    state->active = state->tabs->len - 1;
+
+  // move to the new active tab
+  Tab *next = g_ptr_array_index(state->tabs, state->active);
+  gtk_widget_add_css_class(next->rowBox, "active-tab");
+  if (next->uri && g_strcmp0(next->uri, "about:blank") != 0)
+    webkit_web_view_load_uri(WEBKIT_WEB_VIEW(state->webView), next->uri);
+}
+
+// allocate memory for Magnifier logic
+Magnifier *makeMagData(AppState *state, GtkWidget *tabList) {
+  Magnifier *d = g_new(Magnifier, 1);
+  d->state = state;
+  d->tabList = tabList;
+  return d;
+}
+
+void onMagMotion(GtkEventControllerMotion *motion, double x, double y,
+                 gpointer userData) {
+  Magnifier *d = userData;
+  AppState *state = d->state;
+
+  double baseHeight = 28.0;
+  double maxHeight = 48.0;
+  double influence = 70.0;
+
+  for (guint i = 0; i < state->tabs->len; i++) {
+    Tab *tab = g_ptr_array_index(state->tabs, i);
+
+    // capture x and y value insisde cords just like a struct
+    graphene_point_t cords;
+    if (!gtk_widget_compute_point(tab->tabRow, d->tabList,
+                                  &GRAPHENE_POINT_INIT(0, 0), &cords))
+      continue;
+
+    double tabYCenter = cords.y + gtk_widget_get_height(tab->tabRow) / 2.0;
+
+    double distance = fabs(y - tabYCenter);
+    double height;
+    if (distance < influence) {
+      height = baseHeight + (maxHeight - baseHeight) *
+                                cos((distance / influence) * (G_PI / 2.0));
+    } else {
+      height = baseHeight;
+    }
+    gtk_widget_set_size_request(tab->tabRow, -1, (int)height);
+  }
+}
+
+void onMagLeave(GtkEventControllerMotion *motion, gpointer userData) {
+  Magnifier *d = userData;
+  AppState *state = d->state;
+
+  for (guint i = 0; i < state->tabs->len; i++) {
+    Tab *tab = g_ptr_array_index(state->tabs, i);
+    gtk_widget_set_size_request(tab->tabRow, -1, -1);
+  }
 }
 
 static void onRowEnter(GtkEventControllerMotion *motion, double x, double y,
@@ -130,12 +213,21 @@ typedef struct {
   int index;
 } TabClickData;
 
+typedef struct {
+  AppState *state;
+  int index;
+} CloseClickData;
 // simply detect if any tab is pressed, sends data to switch tab and initiate
 // the switch
 static void onTabClick(GtkGestureClick *gesture, int nPress, double x, double y,
                        gpointer userData) {
   TabClickData *d = userData;
   switchTab(d->state, d->index);
+}
+
+static void onCloseClick(GtkButton *btn, gpointer userData) {
+  CloseClickData *d = userData;
+  closeTab(d->state, d->index);
 }
 
 GtkWidget *makeTabRow(AppState *state, int index) {
@@ -179,6 +271,12 @@ GtkWidget *makeTabRow(AppState *state, int index) {
   gtk_widget_set_halign(tab->closeBtn, GTK_ALIGN_END);
   gtk_widget_set_valign(tab->closeBtn, GTK_ALIGN_CENTER);
 
+  CloseClickData *cd = g_new(CloseClickData, 1);
+  cd->state = state;
+  cd->index = index;
+  g_signal_connect_data(tab->closeBtn, "clicked", G_CALLBACK(onCloseClick), cd,
+                        (GClosureNotify)g_free, G_CONNECT_DEFAULT);
+
   GtkWidget *revealer = gtk_revealer_new();
   gtk_revealer_set_transition_type(GTK_REVEALER(revealer),
                                    GTK_REVEALER_TRANSITION_TYPE_SLIDE_LEFT);
@@ -189,7 +287,7 @@ GtkWidget *makeTabRow(AppState *state, int index) {
   gtk_widget_set_valign(revealer, GTK_ALIGN_CENTER);
 
   GtkWidget *overlay = gtk_overlay_new();
-  gtk_widget_add_css_class(row, "tab-row");
+  gtk_widget_add_css_class(overlay, "tab-row");
   gtk_overlay_set_child(GTK_OVERLAY(overlay), row);
   gtk_overlay_add_overlay(GTK_OVERLAY(overlay), revealer);
   gtk_overlay_set_measure_overlay(GTK_OVERLAY(overlay), revealer, FALSE);
@@ -210,7 +308,6 @@ GtkWidget *makeTabRow(AppState *state, int index) {
                         (GClosureNotify)g_free, G_CONNECT_DEFAULT);
   gtk_widget_add_controller(row, GTK_EVENT_CONTROLLER(click));
   // cursor show hand icon
-  gtk_widget_set_cursor_from_name(overlay, "pointer");
 
   tab->tabRow = overlay;
   return overlay;
