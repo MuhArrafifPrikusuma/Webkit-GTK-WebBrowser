@@ -7,6 +7,7 @@ SRCS = main.c \
        webview/webview.c \
        sidebar/sidebar.c \
        toolbar/toolbar.c\
+       search/search.c\
        css/css.c
 
 OBJS = $(SRCS:.c=.o)

@@ -1,6 +1,8 @@
 #include "toolbar.h"
+#include "../search/search.h"
 #include "glib-object.h"
 #include "glib.h"
+#include "glibconfig.h"
 #include "gtk/gtk.h"
 #include "gtk/gtkshortcut.h"
 
@@ -30,6 +32,8 @@ GtkWidget *makeToolbar(AppState *state) {
   gtk_widget_set_margin_bottom(toolbar, 4);
   gtk_widget_set_margin_top(toolbar, 4);
 
+  gtk_widget_set_hexpand(toolbar, FALSE);
+
   GtkWidget *navRow = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
   gtk_widget_set_halign(navRow, GTK_ALIGN_END);
 
@@ -50,6 +54,12 @@ GtkWidget *makeToolbar(AppState *state) {
   gtk_box_append(GTK_BOX(navRow), forwardButton);
   gtk_box_append(GTK_BOX(navRow), refreshButton);
 
+  GtkWidget *searchBar = makeUriSearch(state);
+
   gtk_box_append(GTK_BOX(toolbar), navRow);
+  gtk_box_append(GTK_BOX(toolbar), searchBar);
+
+  g_object_set_data(G_OBJECT(toolbar), "search-bar", searchBar);
+
   return toolbar;
 }

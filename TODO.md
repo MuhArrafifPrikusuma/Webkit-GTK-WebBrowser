@@ -7,6 +7,7 @@
   - Add a way to show page loading
   - Add adblockers and tracker blockers
   - Add Shortcuts and keybinds settings
+  - Create an option to preserve tabs
 
 # FIX
   

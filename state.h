@@ -35,6 +35,7 @@ typedef struct {
  */
 typedef struct {
   GtkWidget *tabList;
+  GtkWidget *searchBar;
   GtkWidget *webView;
   GPtrArray *tabs;
   int active;

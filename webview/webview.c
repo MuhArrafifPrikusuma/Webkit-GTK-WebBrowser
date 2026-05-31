@@ -1,5 +1,6 @@
 #include "webview.h"
 #include "../tabs/tabs.h"
+#include "glib.h"
 #include <gtk/gtk.h>
 #include <webkit/webkit.h>
 
@@ -47,5 +48,6 @@ void onLoadChange(WebKitWebView *wv, WebKitLoadEvent event, gpointer userData) {
   char *js = g_strdup_printf("window.scrollTo(0, %.2f);", tab->scrollY);
   webkit_web_view_evaluate_javascript(WEBKIT_WEB_VIEW(wv), js, -1, NULL, NULL,
                                       NULL, NULL, NULL);
+
   g_free(js);
 }
