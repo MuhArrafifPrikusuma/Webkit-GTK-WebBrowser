@@ -34,16 +34,17 @@ static void activate(GtkApplication *app, gpointer userData) {
   GtkWidget *toolbar = makeToolbar(state);
   gtk_box_append(GTK_BOX(sidebar), toolbar);
 
-  // append tabList to sidebar
-  state->tabList = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
-  gtk_box_append(GTK_BOX(sidebar), state->tabList);
-
   GtkWidget *newTabBtn = gtk_button_new_with_label("+ New Tab");
+  gtk_button_set_has_frame(GTK_BUTTON(newTabBtn), FALSE);
   gtk_widget_add_css_class(newTabBtn, "new-tab-btn");
   gtk_widget_set_margin_start(newTabBtn, 8);
   gtk_widget_set_margin_end(newTabBtn, 8);
   gtk_widget_set_halign(newTabBtn, GTK_ALIGN_FILL);
   gtk_box_append(GTK_BOX(sidebar), newTabBtn);
+
+  // append tabList to sidebar
+  state->tabList = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
+  gtk_box_append(GTK_BOX(sidebar), state->tabList);
 
   // keeps uri and title current and restore scroll position
   state->webView = webkit_web_view_new();

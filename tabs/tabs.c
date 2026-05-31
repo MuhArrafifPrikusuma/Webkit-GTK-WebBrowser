@@ -171,6 +171,7 @@ GtkWidget *makeTabRow(AppState *state, int index) {
 
   // TODO: make it actually work and fix the row styling, IS GARBAAGE
   tab->closeBtn = gtk_button_new_from_icon_name("window-close-symbolic");
+  gtk_button_set_has_frame(GTK_BUTTON(tab->closeBtn), FALSE);
   gtk_widget_add_css_class(tab->closeBtn, "close-tab");
   gtk_image_set_pixel_size(
       GTK_IMAGE(gtk_button_get_child(GTK_BUTTON(tab->closeBtn))), 12);
