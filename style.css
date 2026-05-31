@@ -29,7 +29,8 @@
 }
 
 .new-tab-btn {
-  background-color: #1e2122;
+  background-image: #1e2122;
+  box-shadow: none;
   border: none;
   color: #cdd6f4;
   font-size: 13px;
@@ -38,7 +39,7 @@
 
 .new-tab-btn:hover {
   background-color: #313335;
-  border: 6px;
+  border-radius: 6px;
 }
 
 .toolbar {
