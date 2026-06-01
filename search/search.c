@@ -31,7 +31,7 @@ static void navigate(AppState *state, const char *text) {
     }
   } else {
     char *encode = g_uri_escape_string(text, NULL, FALSE);
-    uri = g_strdup_printf("https://search.brave.com/search?q=%s", encode);
+    uri = g_strdup_printf("https://google.com/search?q=%s", encode);
     g_free(encode);
   }
   webkit_web_view_load_uri(WEBKIT_WEB_VIEW(state->webView), uri);

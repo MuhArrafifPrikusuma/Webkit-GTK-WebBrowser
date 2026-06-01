@@ -8,6 +8,7 @@
   - Add adblockers and tracker blockers
   - Add Shortcuts and keybinds settings
   - Create an option to preserve tabs
+  - Give the ability to open link
 
 # FIX
   
