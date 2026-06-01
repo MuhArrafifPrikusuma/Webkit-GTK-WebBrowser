@@ -95,7 +95,8 @@ static void activate(GtkApplication *app, gpointer userData) {
 
   // create a new tab on button click
   g_signal_connect(newTabBtn, "clicked", G_CALLBACK(onNewTab), state);
-  addNewTab(state, "https://search.brave.com");
+  // remove when spotlight is implemented
+  addNewTab(state, "https://google.com");
 
   // set overlay as window content and make the window visible
   gtk_window_set_child(GTK_WINDOW(window), overlay);

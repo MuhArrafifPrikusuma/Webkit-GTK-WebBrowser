@@ -19,7 +19,7 @@ typedef struct {
   char *title;
   double scrollY;
   GtkWidget *tabRow;
-  GtkWidget *rowBox;
+  //  GtkWidget *rowBox;
   GtkLabel *tabLabel;
   GtkImage *favicon;
   GtkWidget *closeBtn;
@@ -36,6 +36,7 @@ typedef struct {
 typedef struct {
   GtkWidget *tabList;
   GtkWidget *searchBar;
+  GtkWidget *spotlight;
   GtkWidget *webView;
   GPtrArray *tabs;
   int active;

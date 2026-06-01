@@ -74,9 +74,10 @@ void deleteTabFromDisk(int id) {
 
 void closeTab(AppState *state, int index) {
   // don't delete if only 1 tab left
-  if (state->tabs->len <= 1 || state->active == 0) {
+  if (state->tabs->len <= 1)
     return;
-  }
+  if (index < 0 || index >= state->tabs->len)
+    return;
 
   Tab *tab = g_ptr_array_index(state->tabs, index);
 
@@ -92,15 +93,31 @@ void closeTab(AppState *state, int index) {
 
   g_ptr_array_remove_index(state->tabs, index);
 
-  if (state->active >= state->tabs->len)
-    state->active = state->tabs->len - 1;
+  if (state->active > index) {
+    state->active--;
+  } else if (state->active == index) {
+    if (state->active >= state->tabs->len)
+      state->active = state->tabs->len - 1;
+  }
 
   // move to the new active tab
   Tab *next = g_ptr_array_index(state->tabs, state->active);
-  gtk_widget_add_css_class(next->rowBox, "active-tab");
-  if (next->uri && g_strcmp0(next->uri, "about:blank") != 0)
+  gtk_widget_add_css_class(next->tabRow, "active-tab");
+  if (next->uri && g_strcmp0(next->uri, "about:blank") != 0) {
     webkit_web_view_load_uri(WEBKIT_WEB_VIEW(state->webView), next->uri);
+  }
+
   printf("tab %d is active", state->active);
+}
+
+static int findTableIndexById(AppState *state, int id) {
+  for (guint i = 0; i < state->tabs->len; i++) {
+    Tab *tab = g_ptr_array_index(state->tabs, i);
+    if (tab->id == id) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 // allocate memory for Magnifier logic
@@ -218,23 +235,39 @@ typedef struct {
 
 typedef struct {
   AppState *state;
-  int index;
+  int tabId;
 } CloseClickData;
 // simply detect if any tab is pressed, sends data to switch tab and initiate
 // the switch
 static void onTabClick(GtkGestureClick *gesture, int nPress, double x, double y,
                        gpointer userData) {
-  TabClickData *d = userData;
-  switchTab(d->state, d->index);
+  Tab *tab = userData;
+  AppState *state = g_object_get_data(G_OBJECT(tab->tabRow), "app-state");
+  if (!state)
+    return;
+  int currentIndex = findTableIndexById(state, tab->id);
+  if (currentIndex >= 0) {
+    switchTab(state, currentIndex);
+  }
 }
 
 static void onCloseClick(GtkButton *btn, gpointer userData) {
   CloseClickData *d = userData;
-  closeTab(d->state, d->index);
+
+  int index = findTableIndexById(d->state, d->tabId);
+  if (index < 0)
+    return;
+  closeTab(d->state, index);
 }
 
 GtkWidget *makeTabRow(AppState *state, int index) {
   Tab *tab = g_ptr_array_index(state->tabs, index);
+
+  GtkWidget *rowRevealer = gtk_revealer_new();
+  gtk_widget_add_css_class(rowRevealer, "tab-row");
+  gtk_revealer_set_transition_type(GTK_REVEALER(rowRevealer),
+                                   GTK_REVEALER_TRANSITION_TYPE_SLIDE_RIGHT);
+  gtk_revealer_set_transition_duration(GTK_REVEALER(rowRevealer), 250);
 
   // create a new box for the tab
   GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
@@ -276,7 +309,7 @@ GtkWidget *makeTabRow(AppState *state, int index) {
 
   CloseClickData *cd = g_new(CloseClickData, 1);
   cd->state = state;
-  cd->index = index;
+  cd->tabId = tab->id;
   g_signal_connect_data(tab->closeBtn, "clicked", G_CALLBACK(onCloseClick), cd,
                         (GClosureNotify)g_free, G_CONNECT_DEFAULT);
 
@@ -290,7 +323,6 @@ GtkWidget *makeTabRow(AppState *state, int index) {
   gtk_widget_set_valign(revealer, GTK_ALIGN_CENTER);
 
   GtkWidget *overlay = gtk_overlay_new();
-  gtk_widget_add_css_class(overlay, "tab-row");
   gtk_overlay_set_child(GTK_OVERLAY(overlay), row);
   gtk_overlay_add_overlay(GTK_OVERLAY(overlay), revealer);
   gtk_overlay_set_measure_overlay(GTK_OVERLAY(overlay), revealer, FALSE);
@@ -304,21 +336,20 @@ GtkWidget *makeTabRow(AppState *state, int index) {
   // trigger click on row area
   GtkGesture *click = gtk_gesture_click_new();
   // to HEAP!
-  TabClickData *d = g_new(TabClickData, 1);
-  d->state = state;
-  d->index = index;
-  g_signal_connect_data(click, "pressed", G_CALLBACK(onTabClick), d,
+  g_signal_connect_data(click, "pressed", G_CALLBACK(onTabClick), tab,
                         (GClosureNotify)g_free, G_CONNECT_DEFAULT);
   gtk_widget_add_controller(row, GTK_EVENT_CONTROLLER(click));
   // cursor show hand icon
+  gtk_revealer_set_child(GTK_REVEALER(rowRevealer), overlay);
 
-  tab->tabRow = overlay;
-  return overlay;
+  g_object_set_data(G_OBJECT(rowRevealer), "app-state", state);
+  tab->tabRow = rowRevealer;
+  return rowRevealer;
 }
 
 typedef struct {
   AppState *state;
-  int targetIndex;
+  int targetTabId;
 } SwitchData;
 
 // save scroll value to disk, update active index, load new title and uri
@@ -326,7 +357,7 @@ static void afterSaveSwitch(GObject *wv, GAsyncResult *result,
                             gpointer userData) {
   SwitchData *d = userData;
   AppState *state = d->state;
-  int index = d->targetIndex;
+  int targetTabId = d->targetTabId;
   g_free(d);
 
   //  saving scrollY value to disk
@@ -340,22 +371,29 @@ static void afterSaveSwitch(GObject *wv, GAsyncResult *result,
   if (value)
     g_object_unref(value);
 
+  int index = findTableIndexById(state, targetTabId);
+  if (index < 0)
+    return;
+
+  if (state->active < 0 || state->active >= state->tabs->len)
+    state->active = 0;
+
   // unhighlight old inactive tab
   Tab *old = g_ptr_array_index(state->tabs, state->active);
   gtk_widget_remove_css_class(old->tabRow, "active-tab");
-
   // update active tab and highlight it
   state->active = index;
   Tab *tab = g_ptr_array_index(state->tabs, index);
   gtk_widget_add_css_class(tab->tabRow, "active-tab");
 
-  // load and take uri and title from tmp file and assigning the lable to the
-  // loaded title or New Tab if there is no loaded title
+  // load and take uri and title from tmp file and assigning the lable to
+  // the loaded title or New Tab if there is no loaded title
   loadFromDisk(tab);
   gtk_label_set_text(tab->tabLabel, tab->title ? tab->title : "New Tab");
   if (tab->uri && g_strcmp0(tab->uri, "about:blank") != 0)
     webkit_web_view_load_uri(WEBKIT_WEB_VIEW(state->webView), tab->uri);
 
+  // FIX: this just doesn't work
   if (state->searchBar) {
     UriBarData *d =
         g_object_get_data(G_OBJECT(state->searchBar), "uri-bar-data");
@@ -371,12 +409,16 @@ void switchTab(AppState *state, int index) {
   // nothing
   if (index == state->active && state->tabs->len > 1)
     return;
+  if (index < 0 || index >= state->tabs->len)
+    return;
+
+  Tab *targetTab = g_ptr_array_index(state->tabs, index);
 
   // allocate the struct to heap so it wouldn't be freed before callbacks
   SwitchData *d = g_new(SwitchData, 1);
   // assigning value to d
   d->state = state;
-  d->targetIndex = index;
+  d->targetTabId = targetTab->id;
   // extract javascript scrollY position from webView
   webkit_web_view_evaluate_javascript(WEBKIT_WEB_VIEW(state->webView),
                                       "window.scrollY", -1, NULL, NULL, NULL,
@@ -386,7 +428,7 @@ void switchTab(AppState *state, int index) {
 void addNewTab(AppState *state, const char *uri) {
   // g_new0 is just calloc but with automatic allocation
   Tab *tab = g_new0(Tab, 1);
-  tab->uri = g_strdup("https://search.brave.com");
+  tab->uri = g_strdup("https://google.com");
   tab->title = g_strdup("New Tab");
   tab->id = state->nextTabId++;
 
@@ -402,6 +444,7 @@ void addNewTab(AppState *state, const char *uri) {
   GtkWidget *row = makeTabRow(state, index);
   // make sure row is at the very bottom of the list
   gtk_box_append(GTK_BOX(state->tabList), row);
+  gtk_revealer_set_reveal_child(GTK_REVEALER(row), TRUE);
 
   // set newly build tab as the new active tab
   switchTab(state, index);
