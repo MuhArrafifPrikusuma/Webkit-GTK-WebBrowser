@@ -18,6 +18,7 @@ typedef struct {
   char *uri;
   char *title;
   double scrollY;
+  gboolean garbage;
   GtkWidget *tabRow;
   //  GtkWidget *rowBox;
   GtkLabel *tabLabel;

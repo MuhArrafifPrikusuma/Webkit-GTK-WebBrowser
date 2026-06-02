@@ -1,4 +1,6 @@
 #include "memory.h"
+#include "../tabs/tabs.h"
+#include "../webview/webview.h"
 #include "gio/gio.h"
 #include "glib-object.h"
 #include "glib.h"
@@ -101,16 +103,34 @@ void configureWebkit(AppState *state) {
           "accel, and disabled write to stdout and mediastream\n");
 }
 
+static gboolean burnGarbage(gpointer userData) {
+  AppState *state = userData;
+  for (guint i = 0; i < state->tabs->len; i++) {
+    Tab *tab = g_ptr_array_index(state->tabs, i);
+    if (tab->garbage) {
+      saveToDisk(tab);
+      tab->garbage = FALSE;
+    }
+  }
+  return G_SOURCE_CONTINUE;
+}
+
 // FIX: this crashes everything so fix this bullshit before actually using it
-void destroyOldViewer(GtkBox *container, WebKitWebView *oldView,
-                      AppState *state) {
-  if (!oldView)
+void destroyOldViewer(GtkWidget *container, AppState *state) {
+  if (!state || state->webView)
     return;
+
+  WebKitWebView *oldView = WEBKIT_WEB_VIEW(state->webView);
+
+  g_signal_handlers_disconnect_by_data(GTK_WIDGET(oldView), state);
 
   WebKitSettings *settings = webkit_web_view_get_settings(oldView);
   WebKitNetworkSession *network = webkit_web_view_get_network_session(oldView);
   WebKitUserContentManager *cManager =
       webkit_web_view_get_user_content_manager(oldView);
+
+  const char *currentUri = webkit_web_view_get_uri(oldView);
+  char *savedUri = currentUri ? g_strdup(currentUri) : NULL;
 
   WebKitWebView *newView = WEBKIT_WEB_VIEW(g_object_new(
       WEBKIT_TYPE_WEB_VIEW, "settings", settings, "network-session", network,
@@ -119,12 +139,23 @@ void destroyOldViewer(GtkBox *container, WebKitWebView *oldView,
   gtk_widget_set_hexpand(GTK_WIDGET(newView), TRUE);
   gtk_widget_set_vexpand(GTK_WIDGET(newView), TRUE);
 
+  gtk_overlay_set_child(GTK_OVERLAY(container), GTK_WIDGET(newView));
+
   state->webView = GTK_WIDGET(newView);
 
-  gtk_box_remove(container, GTK_WIDGET(oldView));
-  gtk_box_append(container, GTK_WIDGET(newView));
+  g_signal_connect(state->webView, "notify::uri", G_CALLBACK(onUriChange),
+                   state);
+  g_signal_connect(state->webView, "notify::title", G_CALLBACK(onTitleChange),
+                   state);
+  g_signal_connect(state->webView, "load-changed", G_CALLBACK(onLoadChange),
+                   state);
 
-  g_print("[memory] Created newView Successfully");
+  if (savedUri && g_strcmp0(savedUri, "about:blank") == 0)
+    webkit_web_view_load_uri(WEBKIT_WEB_VIEW(state->webView), savedUri);
+
+  g_free(savedUri);
+
+  g_print("[memory] killed old webView and replaced it Successfully");
 }
 
 static void onCacheCleared(GObject *source, GAsyncResult *rs,
@@ -163,7 +194,7 @@ void reclaimMemory(AppState *state) {
 
 typedef struct {
   AppState *state;
-  GtkBox *container;
+  GtkWidget *overlay;
   gulong peakRssKb; // track peak memory
 } WatchdogIsWatching;
 
@@ -184,18 +215,19 @@ static gboolean watchdogTick(gpointer userData) {
             "EMMM!!\n",
             totalRss / 1024.0);
     reclaimMemory(d->state);
-    destroyOldViewer(d->container, WEBKIT_WEB_VIEW(d->state->webView),
-                     d->state);
+    destroyOldViewer(d->overlay, d->state);
   }
   return G_SOURCE_CONTINUE;
 }
 
-void startMemoryWatchdog(AppState *state) {
+void startMemoryWatchdog(AppState *state, GtkWidget *overlay) {
   WatchdogIsWatching *d = g_new0(WatchdogIsWatching, 1);
   d->state = state;
+  d->overlay = overlay;
   d->peakRssKb = 0;
 
   g_timeout_add(WATCHDOG_INTERVAL_MS, watchdogTick, d);
+  g_timeout_add(5000, burnGarbage, state);
 
   g_print("[memory] watchdog hunting - interval %ds, watermark %dMB\n",
           WATCHDOG_INTERVAL_MS / 1000, HIGH_WATERMARK_KB / 1024);

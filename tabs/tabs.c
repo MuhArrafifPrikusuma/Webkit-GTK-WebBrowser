@@ -92,10 +92,20 @@ void closeTab(AppState *state, int index) {
   if (parent)
     gtk_box_remove(GTK_BOX(parent), tab->tabRow);
 
+  if (tab->tabRow)
+    g_signal_handlers_disconnect_matched(tab->tabRow, G_SIGNAL_MATCH_DATA, 0, 0,
+                                         NULL, NULL, state);
+
   deleteTabFromDisk(tab->id);
 
   g_free(tab->uri);
   g_free(tab->title);
+
+  tab->tabRow = NULL;
+  tab->tabLabel = NULL;
+  tab->favicon = NULL;
+  tab->title = NULL;
+
   g_free(tab);
 
   g_ptr_array_remove_index(state->tabs, index);
@@ -452,7 +462,6 @@ void addNewTab(AppState *state, const char *uri) {
   // g_new0 is just calloc but with automatic allocation
   Tab *tab = g_new0(Tab, 1);
   tab->uri = g_strdup("about:blank");
-  tab->title = g_strdup("New Tab");
   tab->id = state->nextTabId++;
 
   // write to disk immediately even before the page load

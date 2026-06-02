@@ -1,7 +1,9 @@
 #include "webview.h"
 #include "../tabs/tabs.h"
 #include "glib.h"
+#include "glibconfig.h"
 #include <gtk/gtk.h>
+#include <string.h>
 #include <webkit/webkit.h>
 
 // releases the old uri and copies the new one
@@ -19,12 +21,13 @@ void onUriChange(WebKitWebView *wv, GParamSpec *ps, gpointer userData) {
 void onTitleChange(WebKitWebView *wv, GParamSpec *ps, gpointer userData) {
   AppState *state = userData;
   const char *title = webkit_web_view_get_title(wv);
-  if (!title)
-    return;
-
   Tab *tab = g_ptr_array_index(state->tabs, state->active);
+  if (!title)
+    tab->title = g_strdup("New Tab");
+
   g_free(tab->title);
   tab->title = g_strdup(title);
+  tab->garbage = TRUE;
   gtk_label_set_text(tab->tabLabel, title);
 
   saveToDisk(tab);
