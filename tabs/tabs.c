@@ -1,4 +1,5 @@
 #include "tabs.h"
+#include "../memory/memory.h"
 #include "../search/search.h"
 #include "cairo.h"
 #include "gdk/gdk.h"
@@ -107,7 +108,7 @@ void closeTab(AppState *state, int index) {
     webkit_web_view_load_uri(WEBKIT_WEB_VIEW(state->webView), next->uri);
   }
 
-  printf("tab %d is active", state->active);
+  printf("tab %d is active\n", state->active);
 }
 
 static int findTableIndexById(AppState *state, int id) {
@@ -302,7 +303,7 @@ GtkWidget *makeTabRow(AppState *state, int index) {
   gtk_button_set_has_frame(GTK_BUTTON(tab->closeBtn), FALSE);
   gtk_widget_add_css_class(tab->closeBtn, "close-tab");
   gtk_image_set_pixel_size(
-      GTK_IMAGE(gtk_button_get_child(GTK_BUTTON(tab->closeBtn))), 12);
+      GTK_IMAGE(gtk_button_get_child(GTK_BUTTON(tab->closeBtn))), 14);
 
   gtk_widget_set_halign(tab->closeBtn, GTK_ALIGN_END);
   gtk_widget_set_valign(tab->closeBtn, GTK_ALIGN_CENTER);
@@ -399,6 +400,7 @@ static void afterSaveSwitch(GObject *wv, GAsyncResult *result,
         g_object_get_data(G_OBJECT(state->searchBar), "uri-bar-data");
     if (d) {
       syncSearch(d, tab->uri);
+      g_timeout_add(2000, (GSourceFunc)reclaimMemory, NULL);
     }
   }
   // FIX: onFaviconChange(WEBKIT_WEB_VIEW(state->webView), NULL, state);

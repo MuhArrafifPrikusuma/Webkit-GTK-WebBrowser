@@ -1,13 +1,33 @@
 #include "css/css.h"
+#include "gdk/gdk.h"
 #include "glib-object.h"
-#include "search/search.h"
+#include "glib.h"
+#include "memory/memory.h"
 #include "sidebar/sidebar.h"
+#include "spotlight/spotlight.h"
 #include "state.h"
 #include "tabs/tabs.h"
 #include "toolbar/toolbar.h"
 #include "webview/webview.h"
 #include <gtk/gtk.h>
 #include <webkit/webkit.h>
+
+static gboolean onWindowKey(GtkEventControllerKey *key, guint keyvalue,
+                            guint keycode, GdkModifierType modifiers,
+                            gpointer userData) {
+  AppState *state = userData;
+  gboolean ctrlHeld = (modifiers & GDK_CONTROL_MASK) != 0;
+
+  if (ctrlHeld && (keyvalue == GDK_KEY_l || keyvalue == GDK_KEY_k)) {
+    if (gtk_widget_get_visible(state->spotlight)) {
+      hideSpotlight(state->spotlight);
+    } else {
+      showSpotlight(state->spotlight);
+    }
+    return TRUE;
+  }
+  return FALSE;
+}
 
 static void activate(GtkApplication *app, gpointer userData) {
   loadCSS();
@@ -59,6 +79,9 @@ static void activate(GtkApplication *app, gpointer userData) {
 
   // keeps uri and title current and restore scroll position
   state->webView = webkit_web_view_new();
+
+  configureWebkit(state);
+
   g_signal_connect(state->webView, "notify::uri", G_CALLBACK(onUriChange),
                    state);
   g_signal_connect(state->webView, "notify::title", G_CALLBACK(onTitleChange),
@@ -77,15 +100,21 @@ static void activate(GtkApplication *app, gpointer userData) {
   gtk_widget_set_valign(revealer, GTK_ALIGN_FILL);
   gtk_widget_set_halign(revealer, GTK_ALIGN_START);
 
+  state->spotlight = makeSpotlight(state);
+
   // set webView at the very bottom of the overlay and revealer on top of it
   GtkWidget *overlay = gtk_overlay_new();
   gtk_overlay_set_child(GTK_OVERLAY(overlay), state->webView);
   gtk_overlay_add_overlay(GTK_OVERLAY(overlay), revealer);
+  gtk_overlay_add_overlay(GTK_OVERLAY(overlay), state->spotlight);
   // don't change webView size
   gtk_overlay_set_measure_overlay(GTK_OVERLAY(overlay), revealer, FALSE);
+  gtk_overlay_set_measure_overlay(GTK_OVERLAY(overlay), state->spotlight,
+                                  FALSE);
   // click pass throught revealer and will only register to revealer if it's
   // visible
   gtk_overlay_set_clip_overlay(GTK_OVERLAY(overlay), revealer, TRUE);
+  gtk_overlay_set_clip_overlay(GTK_OVERLAY(overlay), state->spotlight, FALSE);
 
   // captures mouse movement in overlay
   GtkEventController *motionCtrl = gtk_event_controller_motion_new();
@@ -93,10 +122,16 @@ static void activate(GtkApplication *app, gpointer userData) {
   g_signal_connect(motionCtrl, "leave", G_CALLBACK(onMouseLeave), revealer);
   gtk_widget_add_controller(overlay, motionCtrl);
 
+  GtkEventController *keyCtrl = gtk_event_controller_key_new();
+  g_signal_connect(keyCtrl, "key-pressed", G_CALLBACK(onWindowKey), state);
+  gtk_widget_add_controller(window, keyCtrl);
+
   // create a new tab on button click
   g_signal_connect(newTabBtn, "clicked", G_CALLBACK(onNewTab), state);
   // remove when spotlight is implemented
   addNewTab(state, "https://google.com");
+
+  startMemoryWatchdog(state);
 
   // set overlay as window content and make the window visible
   gtk_window_set_child(GTK_WINDOW(window), overlay);

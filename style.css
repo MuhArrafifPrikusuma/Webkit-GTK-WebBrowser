@@ -67,11 +67,11 @@
   background: #464748;
   border: none;
   color: #cdd6f4;
-  padding: 0;
+  padding: 12px;
   margin: 0;
   min-width: 12px;
   min-height: 12px;
-  border-radius: 50%;
+  border-radius: 12px;
   /* circular button */
 }
 
@@ -80,7 +80,7 @@
   color: #cdd6f4;
   border: 1px solid #3a3b3c;
   border-radius: 12px;
-  padding: 2px 4px;
+  padding: 4px 12px;
   font-size: 14px;
   min-height: 0;
 }
@@ -92,4 +92,34 @@
 
 .uri-bar text {
   background-color: transparent;
+}
+
+.spotlight-background {
+  background-color: rgba(0, 0, 0, 0.55);
+}
+
+.spotlight-card {
+  min-width: 520px;
+  background-color: rgba(30, 30, 30, 0.65);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.spotlight-entry {
+  background: none;
+  border: none;
+  color: #cdd6f4;
+  font-size: 18px;
+  min-height: 0;
+  padding: 4px 0;
+  outline: none;
+  box-shadow: none;
+}
+
+.spotlight-icon {
+  color: #89b4fa;
+  opacity: 0.8;
 }

@@ -5,6 +5,7 @@
 #include "glib.h"
 #include "gtk/gtk.h"
 #include "gtk/gtkshortcut.h"
+#include "memory.h"
 
 char *tabCachePath(int id);
 void saveToDisk(Tab *tab);
