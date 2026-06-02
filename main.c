@@ -10,6 +10,7 @@
 #include "toolbar/toolbar.h"
 #include "webview/webview.h"
 #include <gtk/gtk.h>
+#include <stdio.h>
 #include <webkit/webkit.h>
 
 static gboolean onWindowKey(GtkEventControllerKey *key, guint keyvalue,
@@ -45,6 +46,17 @@ static void activate(GtkApplication *app, gpointer userData) {
   // create a directory
   g_mkdir_with_parents(TAB_CACHE_DIR, 0700);
 
+  GDir *cacheDir = g_dir_open(TAB_CACHE_DIR, 0, NULL);
+  if (cacheDir) {
+    const char *fName;
+    while ((fName = g_dir_read_name(cacheDir)) != NULL) {
+      char *full = g_strdup_printf("%s/%s", TAB_CACHE_DIR, fName);
+      remove(full);
+      g_free(full);
+    }
+    g_dir_close(cacheDir);
+  }
+
   // create sidebar widget
   GtkWidget *sidebar = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
   gtk_widget_set_size_request(sidebar, 190, -1);
@@ -79,6 +91,10 @@ static void activate(GtkApplication *app, gpointer userData) {
 
   // keeps uri and title current and restore scroll position
   state->webView = webkit_web_view_new();
+  GdkRGBA transparentBG = {0.25, 0.26, 0.36, 0.5};
+  webkit_web_view_set_background_color(WEBKIT_WEB_VIEW(state->webView),
+                                       &transparentBG);
+  gtk_widget_add_css_class(GTK_WIDGET(state->webView), "web-view");
 
   configureWebkit(state);
 
@@ -129,9 +145,9 @@ static void activate(GtkApplication *app, gpointer userData) {
   // create a new tab on button click
   g_signal_connect(newTabBtn, "clicked", G_CALLBACK(onNewTab), state);
   // remove when spotlight is implemented
-  addNewTab(state, "https://google.com");
+  addNewTab(state, "about:blank");
 
-  startMemoryWatchdog(state);
+  startMemoryWatchdog(state, overlay);
 
   // set overlay as window content and make the window visible
   gtk_window_set_child(GTK_WINDOW(window), overlay);
