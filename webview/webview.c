@@ -9,9 +9,6 @@ void onUriChange(WebKitWebView *wv, GParamSpec *ps, gpointer userData) {
   AppState *state = userData;
   const char *uri = webkit_web_view_get_uri(wv);
 
-  if (!uri || g_strcmp0(uri, "about:blank") == 0)
-    return;
-
   Tab *tab = g_ptr_array_index(state->tabs, state->active);
 
   g_free(tab->uri);

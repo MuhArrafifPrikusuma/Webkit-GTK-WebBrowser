@@ -79,6 +79,9 @@ static void activate(GtkApplication *app, gpointer userData) {
 
   // keeps uri and title current and restore scroll position
   state->webView = webkit_web_view_new();
+  GdkRGBA transparentBG = {0.0, 0.0, 0.0, 0.0};
+  webkit_web_view_set_background_color(WEBKIT_WEB_VIEW(state->webView),
+                                       &transparentBG);
 
   configureWebkit(state);
 
@@ -129,7 +132,7 @@ static void activate(GtkApplication *app, gpointer userData) {
   // create a new tab on button click
   g_signal_connect(newTabBtn, "clicked", G_CALLBACK(onNewTab), state);
   // remove when spotlight is implemented
-  addNewTab(state, "https://google.com");
+  addNewTab(state, "about:blank");
 
   startMemoryWatchdog(state);
 

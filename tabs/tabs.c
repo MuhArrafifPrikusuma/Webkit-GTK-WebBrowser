@@ -30,8 +30,9 @@ void saveToDisk(Tab *tab) {
   // 0700 octal permission ensuring only owner has access to it
   g_mkdir_with_parents(TAB_CACHE_DIR, 0700);
   char *path = tabCachePath(tab->id);
-  char *content = g_strdup_printf("%s\n%s\n%.2lf\n", tab->uri,
-                                  tab->title ? tab->title : "", tab->scrollY);
+  char *content =
+      g_strdup_printf("%s\n%s\n%.2lf\n", tab->uri,
+                      tab->title ? tab->title : "New Tab", tab->scrollY);
   // -1 mean use strlen to determine lenght automatically
   // write string to disk automatically
   g_file_set_contents(path, content, -1, NULL);
@@ -48,6 +49,8 @@ void loadFromDisk(Tab *tab) {
     return;
   }
 
+  g_strstrip(content);
+
   char **lines = g_strsplit(content, "\n", 4);
   if (lines[0]) {
     g_free(tab->uri);
@@ -56,6 +59,9 @@ void loadFromDisk(Tab *tab) {
   if (lines[1]) {
     g_free(tab->title);
     tab->title = g_strdup(lines[1]);
+  } else {
+    g_free(tab->title);
+    tab->title = g_strdup("New Tab");
   }
   if (lines[2]) {
     tab->scrollY = g_ascii_strtod(lines[2], NULL);
@@ -104,7 +110,7 @@ void closeTab(AppState *state, int index) {
   // move to the new active tab
   Tab *next = g_ptr_array_index(state->tabs, state->active);
   gtk_widget_add_css_class(next->tabRow, "active-tab");
-  if (next->uri && g_strcmp0(next->uri, "about:blank") != 0) {
+  if (next->uri) {
     webkit_web_view_load_uri(WEBKIT_WEB_VIEW(state->webView), next->uri);
   }
 
@@ -361,17 +367,31 @@ static void afterSaveSwitch(GObject *wv, GAsyncResult *result,
   int targetTabId = d->targetTabId;
   g_free(d);
 
-  //  saving scrollY value to disk
+  // 1. SAFELY EXTRACT SCROLL DATA IF IT EXISTS
+  // Use a GError pointer so WebKit doesn't crash silently if JS fails
+  GError *error = NULL;
   JSCValue *value = webkit_web_view_evaluate_javascript_finish(
-      WEBKIT_WEB_VIEW(wv), result, NULL);
+      WEBKIT_WEB_VIEW(wv), result, &error);
+
+  if (error) {
+    // Clear the error handle silently; we know it's just a blank page or a
+    // loading state
+    g_error_free(error);
+  }
+
+  // Only update scroll statistics if JavaScript successfully returned a real
+  // number
   if (value && jsc_value_is_number(value)) {
-    Tab *old = g_ptr_array_index(state->tabs, state->active);
-    old->scrollY = jsc_value_to_double(value);
-    saveToDisk(old);
+    if (state->active >= 0 && state->active < state->tabs->len) {
+      Tab *old = g_ptr_array_index(state->tabs, state->active);
+      old->scrollY = jsc_value_to_double(value);
+      saveToDisk(old);
+    }
   }
   if (value)
     g_object_unref(value);
 
+  // 2. NOW EXECUTE THE SWITCH REGARDLESS OF JS STATUS
   int index = findTableIndexById(state, targetTabId);
   if (index < 0)
     return;
@@ -379,35 +399,37 @@ static void afterSaveSwitch(GObject *wv, GAsyncResult *result,
   if (state->active < 0 || state->active >= state->tabs->len)
     state->active = 0;
 
-  // unhighlight old inactive tab
+  // Unhighlight old inactive tab style classes
   Tab *old = g_ptr_array_index(state->tabs, state->active);
   gtk_widget_remove_css_class(old->tabRow, "active-tab");
-  // update active tab and highlight it
+
+  // Update state pointer tracking indices
   state->active = index;
   Tab *tab = g_ptr_array_index(state->tabs, index);
   gtk_widget_add_css_class(tab->tabRow, "active-tab");
 
-  // load and take uri and title from tmp file and assigning the lable to
-  // the loaded title or New Tab if there is no loaded title
+  // Read data sync back from cached state structures
   loadFromDisk(tab);
   gtk_label_set_text(tab->tabLabel, tab->title ? tab->title : "New Tab");
-  if (tab->uri && g_strcmp0(tab->uri, "about:blank") != 0)
-    webkit_web_view_load_uri(WEBKIT_WEB_VIEW(state->webView), tab->uri);
 
-  // FIX: this just doesn't work
+  // Force WebKit to switch addresses cleanly
+  if (tab->uri && g_strcmp0(tab->uri, "about:blank") != 0) {
+    webkit_web_view_load_uri(WEBKIT_WEB_VIEW(state->webView), tab->uri);
+  } else if (tab->uri && g_strcmp0(tab->uri, "about:blank") == 0) {
+    webkit_web_view_load_uri(WEBKIT_WEB_VIEW(state->webView), "about:blank");
+    gtk_label_set_text(tab->tabLabel, "New Tab");
+  }
+
   if (state->searchBar) {
-    UriBarData *d =
+    UriBarData *ubd =
         g_object_get_data(G_OBJECT(state->searchBar), "uri-bar-data");
-    if (d) {
-      syncSearch(d, tab->uri);
-      g_timeout_add(2000, (GSourceFunc)reclaimMemory, NULL);
+    if (ubd) {
+      syncSearch(ubd, tab->uri);
     }
   }
-  // FIX: onFaviconChange(WEBKIT_WEB_VIEW(state->webView), NULL, state);
 }
-
 void switchTab(AppState *state, int index) {
-  // if there is more than one tab open and current index is active then do
+  // If there is more than one tab open and current index is active then do
   // nothing
   if (index == state->active && state->tabs->len > 1)
     return;
@@ -416,21 +438,20 @@ void switchTab(AppState *state, int index) {
 
   Tab *targetTab = g_ptr_array_index(state->tabs, index);
 
-  // allocate the struct to heap so it wouldn't be freed before callbacks
   SwitchData *d = g_new(SwitchData, 1);
-  // assigning value to d
   d->state = state;
   d->targetTabId = targetTab->id;
-  // extract javascript scrollY position from webView
+
+  // Run javascript evaluation layout tasks. If it fails on about:blank,
+  // afterSaveSwitch handles the error gracefully and still switches tabs!
   webkit_web_view_evaluate_javascript(WEBKIT_WEB_VIEW(state->webView),
                                       "window.scrollY", -1, NULL, NULL, NULL,
                                       afterSaveSwitch, d);
 }
-
 void addNewTab(AppState *state, const char *uri) {
   // g_new0 is just calloc but with automatic allocation
   Tab *tab = g_new0(Tab, 1);
-  tab->uri = g_strdup("https://google.com");
+  tab->uri = g_strdup("about:blank");
   tab->title = g_strdup("New Tab");
   tab->id = state->nextTabId++;
 

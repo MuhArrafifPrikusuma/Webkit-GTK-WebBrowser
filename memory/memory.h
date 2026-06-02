@@ -3,6 +3,7 @@
 
 #include "../state.h"
 #include <gtk/gtk.h>
+#include <time.h>
 
 void configureWebkit(AppState *state);
 

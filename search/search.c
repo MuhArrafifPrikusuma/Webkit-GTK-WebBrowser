@@ -53,7 +53,7 @@ static void onUriActive(GtkEntry *entry, gpointer userData) {
 static void onSyncUri(WebKitWebView *wv, GParamSpec *ps, gpointer userData) {
   UriBarData *d = userData;
   const char *uri = webkit_web_view_get_uri(wv);
-  if (!uri || g_strcmp0(uri, "about:blank") == 0)
+  if (!uri)
     return;
   if (!gtk_widget_has_focus(d->entry))
     gtk_editable_set_text(GTK_EDITABLE(d->entry), uri);
@@ -65,7 +65,7 @@ static void onFocus(GtkEventControllerFocus *focus, gpointer userData) {
 }
 
 void syncSearch(UriBarData *d, const char *uri) {
-  if (!uri || g_strcmp0(uri, "about:blank") == 0)
+  if (!uri)
     return;
   if (!gtk_widget_has_focus(d->entry))
     gtk_editable_set_text(GTK_EDITABLE(d->entry), uri);

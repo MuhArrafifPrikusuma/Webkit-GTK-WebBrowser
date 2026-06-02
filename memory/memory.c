@@ -6,31 +6,79 @@
 #include "gtk/gtk.h"
 #include "webkit/WebKitSettings.h"
 #include "webkit/WebKitUserContentManager.h"
+#include <dirent.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <unistd.h>
 #include <webkit/webkit.h>
 
 // how often watchdog check memory
 #define WATCHDOG_INTERVAL_MS 50000
 
-#define HIGH_WATERMARK_KB (400 * 1024)
+#define HIGH_WATERMARK_KB (250 * 1024)
 
-// manage virtual memory resident
-gulong getResidentMemoryKb(void) {
-  FILE *f = fopen("/proc/self/status", "r");
+// read rss of a specific process id
+static gulong getPidRssKb(pid_t pid) {
+  char path[64];
+  snprintf(path, sizeof(path), "/proc/%d/status", pid);
+  FILE *f = fopen(path, "r");
   if (!f)
     return 0;
 
   char line[256];
-  // virtual memory resident set size
-  gulong vmrss = 0;
+  gulong rss = 0;
   while (fgets(line, sizeof(line), f)) {
-    // string scan formatted
-    if (sscanf(line, "VmRSS: %lu kB", &vmrss))
+    if (sscanf(line, "VmRSS: %lu kB", &rss) == 1)
       break;
   }
   fclose(f);
-  return vmrss;
+  return rss;
 }
+
+// read process id parent
+static pid_t getPidParent(pid_t pid) {
+  char path[64];
+  snprintf(path, sizeof(path), "/proc/%d/status", pid);
+  FILE *f = fopen(path, "r");
+  if (!f)
+    return 0;
+  char line[256];
+  pid_t ppid = 0;
+  while (fgets(line, sizeof(line), f)) {
+    if (sscanf(line, "PPid: %d", &ppid) == 1)
+      break;
+  }
+  fclose(f);
+  return ppid;
+}
+
+// Get The sum of all webkit process
+gulong totalRssKb(void) {
+  pid_t selfPid = getpid();
+  gulong total = getPidRssKb(selfPid);
+
+  DIR *proc = opendir("/proc");
+  if (!proc)
+    return total;
+
+  struct dirent *entry;
+  while ((entry = readdir(proc)) != NULL) {
+    if (entry->d_type != DT_DIR)
+      continue;
+    char *end;
+    pid_t pid = strtol(entry->d_name, &end, 10);
+    if (*end != '\0' || pid == selfPid)
+      continue;
+
+    if (getPidParent(pid) == selfPid)
+      total += getPidRssKb(pid);
+  }
+  closedir(proc);
+  return total;
+}
+
+gulong getResidentMemoryKb(void) { return getPidRssKb(getpid()); }
 
 void configureWebkit(AppState *state) {
   WebKitWebContext *ctx = webkit_web_context_get_default();
@@ -122,17 +170,19 @@ typedef struct {
 static gboolean watchdogTick(gpointer userData) {
   WatchdogIsWatching *d = userData;
   gulong rssKb = getResidentMemoryKb();
+  gulong totalRss = totalRssKb();
 
-  if (rssKb > d->peakRssKb)
-    d->peakRssKb = rssKb;
+  if (totalRss > d->peakRssKb)
+    d->peakRssKb = totalRss;
 
-  g_print("[memory] watchdog -- RSS: %.1f MB peak: %.1lf MB\n", rssKb / 1024.0,
-          d->peakRssKb / 1024.0);
+  g_print("[memory] watchdog -- self RSS: %.1f MB\ntotal RSS: %.1f MB\n peak: "
+          "%.1lf MB\n",
+          rssKb / 1024.0, totalRss / 1024.0, d->peakRssKb / 1024.0);
 
   if (rssKb > HIGH_WATERMARK_KB) {
     g_print("[memory] high watermark exceeded (%.1f MB) -- WatchDog GO KILL "
             "EMMM!!\n",
-            rssKb / 1024.0);
+            totalRss / 1024.0);
     reclaimMemory(d->state);
     destroyOldViewer(d->container, WEBKIT_WEB_VIEW(d->state->webView),
                      d->state);
