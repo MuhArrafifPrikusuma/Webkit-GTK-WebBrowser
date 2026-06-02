@@ -15,6 +15,8 @@ static gboolean isUri(const char *text) {
 
   if (strchr(text, '.') && !strchr(text, ' '))
     return TRUE;
+  if (g_strcmp0(text, "about:blank") == 0)
+    return TRUE;
   return FALSE;
 }
 
@@ -29,6 +31,8 @@ static void navigate(AppState *state, const char *text) {
     } else {
       uri = g_strdup_printf("https://");
     }
+  } else if (g_strcmp0(text, "about:blank") == 0) {
+    uri = g_strdup(text);
   } else {
     char *encode = g_uri_escape_string(text, NULL, FALSE);
     uri = g_strdup_printf("https://google.com/search?q=%s", encode);

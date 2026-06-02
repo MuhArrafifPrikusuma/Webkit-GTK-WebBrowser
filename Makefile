@@ -8,6 +8,8 @@ SRCS = main.c \
        sidebar/sidebar.c \
        toolbar/toolbar.c\
        search/search.c\
+       memory/memory.c\
+       spotlight/spotlight.c\
        css/css.c
 
 OBJS = $(SRCS:.c=.o)
