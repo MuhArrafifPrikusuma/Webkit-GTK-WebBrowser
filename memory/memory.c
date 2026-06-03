@@ -117,7 +117,7 @@ static gboolean burnGarbage(gpointer userData) {
 
 // FIX: this crashes everything so fix this bullshit before actually using it
 void destroyOldViewer(GtkWidget *container, AppState *state) {
-  if (!state || state->webView)
+  if (state || state->webView)
     return;
 
   WebKitWebView *oldView = WEBKIT_WEB_VIEW(state->webView);
@@ -150,7 +150,7 @@ void destroyOldViewer(GtkWidget *container, AppState *state) {
   g_signal_connect(state->webView, "load-changed", G_CALLBACK(onLoadChange),
                    state);
 
-  if (savedUri && g_strcmp0(savedUri, "about:blank") == 0)
+  if (savedUri && g_strcmp0(savedUri, "about:blank") != 0)
     webkit_web_view_load_uri(WEBKIT_WEB_VIEW(state->webView), savedUri);
 
   g_free(savedUri);

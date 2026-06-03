@@ -30,14 +30,16 @@ static gboolean onWindowKey(GtkEventControllerKey *key, guint keyvalue,
   return FALSE;
 }
 
+// build the ui
 static void activate(GtkApplication *app, gpointer userData) {
   loadCSS();
 
+  // create a window
   GtkWidget *window = gtk_application_window_new(app);
   gtk_window_set_title(GTK_WINDOW(window), "WebView");
   gtk_window_set_default_size(GTK_WINDOW(window), 1200, 700);
 
-  // to Heap! again
+  // sets appstate for the very first tab
   AppState *state = g_new0(AppState, 1);
   state->tabs = g_ptr_array_new();
   state->active = 0;
@@ -46,6 +48,7 @@ static void activate(GtkApplication *app, gpointer userData) {
   // create a directory
   g_mkdir_with_parents(TAB_CACHE_DIR, 0700);
 
+  // clear leftover from previous session
   GDir *cacheDir = g_dir_open(TAB_CACHE_DIR, 0, NULL);
   if (cacheDir) {
     const char *fName;
@@ -81,7 +84,8 @@ static void activate(GtkApplication *app, gpointer userData) {
   state->tabList = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
   gtk_box_append(GTK_BOX(sidebar), state->tabList);
 
-  // for magnifier from tabs
+  // pass tabList data to magnifier and magnify those tabs based on magnifier
+  // motion calculation
   GtkEventController *magCtrl = gtk_event_controller_motion_new();
   Magnifier *magData = makeMagData(state, state->tabList);
 
@@ -156,7 +160,9 @@ static void activate(GtkApplication *app, gpointer userData) {
 int main(int argc, char **argv) {
   GtkApplication *app;
   int status;
+  // init
   app = gtk_application_new("org.webview.app", G_APPLICATION_NON_UNIQUE);
+  // register activate to run when app starts
   g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
   status = g_application_run(G_APPLICATION(app), argc, argv);
   g_object_unref(app);
