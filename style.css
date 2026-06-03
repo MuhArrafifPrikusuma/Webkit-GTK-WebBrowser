@@ -1,0 +1,129 @@
+window {
+  background: transparent;
+}
+
+.sidebar {
+  background-color: #1e2122;
+  border: 1px solid #313244;
+  width: 190px;
+  max-width: 190px;
+  min-width: 190px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.tab-row {
+  border-radius: 12px;
+  padding: 2px 4px;
+  margin-left: 4px;
+  margin-right: 4px;
+  color: #cdd6f4;
+}
+
+.tab-row:hover {
+  background-color: #2f3132;
+}
+
+.active-tab {
+  border-radius: 12px;
+  padding: 2px 4px;
+  margin-left: 4px;
+  margin-right: 4px;
+  background-color: #464748;
+}
+
+.new-tab-btn {
+  background-image: #1e2122;
+  box-shadow: none;
+  border: none;
+  color: #cdd6f4;
+  font-size: 13px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.new-tab-btn:hover {
+  background-color: #313335;
+  border-radius: 6px;
+}
+
+.toolbar {
+  max-width: 180px;
+  width: 180px;
+  border-bottom: 1px solid #313244;
+  padding-bottom: 4px;
+}
+
+.nav-btn {
+  background: none;
+  border: none;
+  color: #cdd6f4;
+  padding: 4px;
+  border-radius: 6px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.nav-btn:hover {
+  background-color: #313244;
+}
+
+.close-tab {
+  background: #464748;
+  border: none;
+  color: #cdd6f4;
+  padding: 12px;
+  margin: 0;
+  min-width: 12px;
+  min-height: 12px;
+  border-radius: 12px;
+  /* circular button */
+}
+
+.uri-bar {
+  background-color: #2a2b2c;
+  color: #cdd6f4;
+  border: 1px solid #3a3b3c;
+  border-radius: 12px;
+  padding: 4px 12px;
+  font-size: 14px;
+  min-height: 0;
+}
+
+.uri-bar:focus {
+  border-color: #89b4fa;
+  background-color: #313244;
+}
+
+.uri-bar text {
+  background-color: transparent;
+}
+
+.spotlight-background {
+  background-color: rgba(0, 0, 0, 0.55);
+}
+
+.spotlight-card {
+  min-width: 520px;
+  background-color: rgba(30, 30, 30, 0.65);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.spotlight-entry {
+  background: none;
+  border: none;
+  color: #cdd6f4;
+  font-size: 18px;
+  min-height: 0;
+  padding: 4px 0;
+  outline: none;
+  box-shadow: none;
+}
+
+.spotlight-icon {
+  color: #89b4fa;
+  opacity: 0.8;
+}

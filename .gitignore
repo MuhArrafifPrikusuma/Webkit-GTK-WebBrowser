@@ -1,3 +1,5 @@
 webkit
 .cache/
 *.json
+*.o
+build/
