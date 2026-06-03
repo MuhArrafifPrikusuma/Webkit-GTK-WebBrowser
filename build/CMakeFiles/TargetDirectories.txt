@@ -1,3 +1,0 @@
-/home/afif/Project/webkitGTK/build/CMakeFiles/webkit.dir
-/home/afif/Project/webkitGTK/build/CMakeFiles/edit_cache.dir
-/home/afif/Project/webkitGTK/build/CMakeFiles/rebuild_cache.dir
