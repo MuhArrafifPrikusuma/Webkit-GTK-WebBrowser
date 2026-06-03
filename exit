@@ -1,0 +1,10 @@
+[33ma444c15[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mchild[m[33m, [m[1;31morigin/child[m[33m)[m migrate from plain MakeFile to CMake
+[33mc0e23bc[m migrate from plain MakeFile to CMake
+[33m92586bb[m added release flag to Makefile
+[33m82451e7[m better transparent background and better optimization(still very unoptimized)
+[33m9ed69b1[m transparent background but if the page currently active while adding a new tab is not blank and has a javascript on it, it will slows the new tab creation process and break things which simply makes the tabLabel be blank while it should be New Tab
+[33m8342dbc[m added spotlight search
+[33m85126bc[m added addTab animation, overlay is now under rowRevealer and bigger font for search also fixes double free by changing the way it searches index. Now it search index by looking at it's id first then search where that id is in the index and then delete that index
+[33m59480db[m added search bar
+[33mcb17d4b[m added magnifier animation and close tab actually working (stupid issues included)
+[33m967e52e[m FINALLY I CAN MAKE THE BUTTON TRANSPARANT
