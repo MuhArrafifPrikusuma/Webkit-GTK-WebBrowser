@@ -13,10 +13,15 @@
 #include <stdio.h>
 #include <webkit/webkit.h>
 
+/*
+ * use GtkEventControllerKey to check what keys user click on keyboard
+ * to show spotlight search if they press ctrl+l or ctrl+k
+ */
 static gboolean onWindowKey(GtkEventControllerKey *key, guint keyvalue,
                             guint keycode, GdkModifierType modifiers,
                             gpointer userData) {
   AppState *state = userData;
+  // if modifiers is the control key the value of ctrlHeld will be true
   gboolean ctrlHeld = (modifiers & GDK_CONTROL_MASK) != 0;
 
   if (ctrlHeld && (keyvalue == GDK_KEY_l || keyvalue == GDK_KEY_k)) {
@@ -94,18 +99,21 @@ static void activate(GtkApplication *app, gpointer userData) {
   GdkRGBA transparentBG = {0.25, 0.26, 0.36, 0.5};
   webkit_web_view_set_background_color(WEBKIT_WEB_VIEW(state->webView),
                                        &transparentBG);
-  gtk_widget_add_css_class(GTK_WIDGET(state->webView), "web-view");
-
+  // pass the webkit configuration settings from memory.c
   configureWebkit(state);
 
+  // notify uri and title change to state so that it will also change on state
   g_signal_connect(state->webView, "notify::uri", G_CALLBACK(onUriChange),
                    state);
   g_signal_connect(state->webView, "notify::title", G_CALLBACK(onTitleChange),
                    state);
+  // fire multiple stages of pages loading to keep updating pages when something
+  // changes
   g_signal_connect(state->webView, "load-changed", G_CALLBACK(onLoadChange),
                    state);
 
-  // reveal sidebar
+  // reveal is placed at the exact same layer as webview to detect if any object
+  // enter the designated position and revealer it's child( sidebar)
   GtkWidget *revealer = gtk_revealer_new();
   gtk_revealer_set_transition_type(GTK_REVEALER(revealer),
                                    GTK_REVEALER_TRANSITION_TYPE_SLIDE_RIGHT);
@@ -116,14 +124,15 @@ static void activate(GtkApplication *app, gpointer userData) {
   gtk_widget_set_valign(revealer, GTK_ALIGN_FILL);
   gtk_widget_set_halign(revealer, GTK_ALIGN_START);
 
+  // make the spotlight widget
   state->spotlight = makeSpotlight(state);
 
-  // set webView at the very bottom of the overlay and revealer on top of it
+  // create overlay as the parent of all widgets
   GtkWidget *overlay = gtk_overlay_new();
   gtk_overlay_set_child(GTK_OVERLAY(overlay), state->webView);
   gtk_overlay_add_overlay(GTK_OVERLAY(overlay), revealer);
   gtk_overlay_add_overlay(GTK_OVERLAY(overlay), state->spotlight);
-  // don't change webView size
+  // make sure this object doesn't effect others size
   gtk_overlay_set_measure_overlay(GTK_OVERLAY(overlay), revealer, FALSE);
   gtk_overlay_set_measure_overlay(GTK_OVERLAY(overlay), state->spotlight,
                                   FALSE);

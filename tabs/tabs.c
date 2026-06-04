@@ -49,8 +49,10 @@ void loadFromDisk(Tab *tab) {
     return;
   }
 
+  // rmeove white spaces from content
   g_strstrip(content);
 
+  // split it into 4 parts with \n as the separator
   char **lines = g_strsplit(content, "\n", 4);
   if (lines[0]) {
     g_free(tab->uri);
@@ -83,36 +85,42 @@ void closeTab(AppState *state, int index) {
   // don't delete if only 1 tab left
   if (state->tabs->len <= 1)
     return;
+  // check if id and index is valid
   if (index < 0 || index >= state->tabs->len)
     return;
 
+  // assign state->tabs pointer at index to tab
   Tab *tab = g_ptr_array_index(state->tabs, index);
 
+  // remove widget from sidebar
   GtkWidget *parent = gtk_widget_get_parent(tab->tabRow);
   if (parent)
     gtk_box_remove(GTK_BOX(parent), tab->tabRow);
 
+  // remove any active signal listener on that tab
   if (tab->tabRow)
     g_signal_handlers_disconnect_matched(tab->tabRow, G_SIGNAL_MATCH_DATA, 0, 0,
                                          NULL, NULL, state);
 
   deleteTabFromDisk(tab->id);
 
+  // free and null all pointers so it doesnt leave any garbage
   g_free(tab->uri);
   g_free(tab->title);
-
   tab->tabRow = NULL;
   tab->tabLabel = NULL;
   tab->favicon = NULL;
   tab->title = NULL;
-
   g_free(tab);
 
+  // remove from array and shift index
   g_ptr_array_remove_index(state->tabs, index);
 
   if (state->active > index) {
-    state->active--;
+    state->active--; // shift active tab index by 1
   } else if (state->active == index) {
+    // if currently active tab is closed the new active tab will be the one with
+    // active - 1 index
     if (state->active >= state->tabs->len)
       state->active = state->tabs->len - 1;
   }
@@ -127,6 +135,7 @@ void closeTab(AppState *state, int index) {
   printf("tab %d is active\n", state->active);
 }
 
+// look for tab index position by it's id
 static int findTableIndexById(AppState *state, int id) {
   for (guint i = 0; i < state->tabs->len; i++) {
     Tab *tab = g_ptr_array_index(state->tabs, i);
@@ -245,10 +254,6 @@ static void onRowLeave(GtkEventControllerMotion *motion, gpointer userData) {
 /*
  * TABS UI CREATION
  */
-typedef struct {
-  AppState *state;
-  int index;
-} TabClickData;
 
 typedef struct {
   AppState *state;
