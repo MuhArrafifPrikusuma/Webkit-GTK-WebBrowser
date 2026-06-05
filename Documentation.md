@@ -2,7 +2,7 @@
   
   mainly handles launching app and build ui
 
-### Explanation
+### Functions
   
     static gboolean onWindowKey(GtkEventControllerKey *key, guint keyvalue, 
                                 guint keycode, GdkModifierType modifiers, 
@@ -14,19 +14,17 @@
   
   - window init
   - create the first tab
-  - create ui elements like sidebar, toolbar, revealer, webView rendering, tabs, overlay
-    and also detect changes and apply changes and initiate memory watchdog and webkit settings
+  - create ui elements like sidebar, toolbar, revealer, webView rendering, tabs, overlay and also detect changes and apply changes and initiate memory watchdog and webkit settings
 
     int main(int argc, char **argv) 
   
-  What it does: set app domain and initiate the start of the browser and actively maintain the 
-    active function to keep running until the app is closed
+  What it does: set app domain and initiate the start of the browser and actively maintain the active function to keep running until the app is closed
   
 ## tabs.c
 
   handles tabs creation, deletion and tab animation 
 
-### Explanation
+### Functions
 
 #### Tab action logic
 
@@ -74,8 +72,7 @@
   
   allocate memory and initiate Magnifier data context
 
-    void onMagMotion(GtkEventControllerMotion *motion, double x, double y,
-                 gpointer userData);
+    void onMagMotion(GtkEventControllerMotion *motion, double x, double y, gpointer userData);
 
   basically detect the distance between cursor and tabList and then stretch it depending
   on how far or how close it is
@@ -86,8 +83,7 @@
 
 #### Other Animations
 
-    static void onRowEnter(GtkEventControllerMotion *motion, double x, double y,
-                       gpointer userData);
+    static void onRowEnter(GtkEventControllerMotion *motion, double x, double y, gpointer userData);
 
   Detect mouse position and check if it's within 30 pixels at the very end of the overlay
   it will reveal the close tab button
@@ -98,8 +94,25 @@
 
 #### Tab Actions
 
-    static void onTabClick(GtkGestureClick *gesture, int nPress, double x, double y,
-                       gpointer userData);
+    static void onTabClick(GtkGestureClick *gesture, int nPress, double x, double y, gpointer userData);
 
  detect if the tab if tabRow is clicked using the keystring "app-state" and then use 
-findTableIndexById to see the current index of the clicked tab and switch to it
+ findTableIndexById to see the current index of the clicked tab and switch to it
+
+    void switchTab(AppState *state, int index);
+  
+  pass state and new tab id and start evaluation js to find user scroll position
+
+    static void afterSaveSwitch(GObject *wv, GAsyncResult *result, gpointer userData);
+
+  extract scroll data, move active-tab css class to the new active tab and load tab data from disk
+
+#### Widgets
+
+    GtkWidget *makeTabRow(AppState *state, int index);
+
+  create the alot of widgets (row, overlay , rowRevealer, revealer for close btn and close button)
+
+    void addNewTab(AppState *state, const char *uri);
+
+  addNewTab and immediately switch to it
