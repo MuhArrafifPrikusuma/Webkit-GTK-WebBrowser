@@ -92,6 +92,14 @@ void closeTab(AppState *state, int index) {
   // assign state->tabs pointer at index to tab
   Tab *tab = g_ptr_array_index(state->tabs, index);
 
+  // clear garbage from tab->tabRow when its closed
+  if (tab->tabRow) {
+    gpointer garbage = g_object_get_data(G_OBJECT(tab->tabRow), "app-state");
+
+    if (garbage && garbage != state)
+      g_free(garbage);
+  }
+
   // remove widget from sidebar
   GtkWidget *parent = gtk_widget_get_parent(tab->tabRow);
   if (parent)
@@ -131,8 +139,6 @@ void closeTab(AppState *state, int index) {
   if (next->uri) {
     webkit_web_view_load_uri(WEBKIT_WEB_VIEW(state->webView), next->uri);
   }
-
-  printf("tab %d is active\n", state->active);
 }
 
 // look for tab index position by it's id
@@ -285,6 +291,7 @@ static void onCloseClick(GtkButton *btn, gpointer userData) {
 GtkWidget *makeTabRow(AppState *state, int index) {
   Tab *tab = g_ptr_array_index(state->tabs, index);
 
+  // revealer for row
   GtkWidget *rowRevealer = gtk_revealer_new();
   gtk_widget_add_css_class(rowRevealer, "tab-row");
   gtk_revealer_set_transition_type(GTK_REVEALER(rowRevealer),
@@ -319,7 +326,7 @@ GtkWidget *makeTabRow(AppState *state, int index) {
   gtk_widget_set_hexpand(GTK_WIDGET(tab->tabLabel), FALSE);
   gtk_box_append(GTK_BOX(row), GTK_WIDGET(tab->tabLabel));
 
-  // TODO: make it actually work and fix the row styling, IS GARBAAGE
+  // create closeBtn widget and
   tab->closeBtn = gtk_button_new_from_icon_name("window-close-symbolic");
   gtk_button_set_has_frame(GTK_BUTTON(tab->closeBtn), FALSE);
   gtk_widget_add_css_class(tab->closeBtn, "close-tab");
@@ -329,12 +336,14 @@ GtkWidget *makeTabRow(AppState *state, int index) {
   gtk_widget_set_halign(tab->closeBtn, GTK_ALIGN_END);
   gtk_widget_set_valign(tab->closeBtn, GTK_ALIGN_CENTER);
 
-  CloseClickData *cd = g_new(CloseClickData, 1);
-  cd->state = state;
-  cd->tabId = tab->id;
-  g_signal_connect_data(tab->closeBtn, "clicked", G_CALLBACK(onCloseClick), cd,
+  // sent clicked signal to onCloseClick and passing ccd to it too
+  CloseClickData *ccd = g_new(CloseClickData, 1);
+  ccd->state = state;
+  ccd->tabId = tab->id;
+  g_signal_connect_data(tab->closeBtn, "clicked", G_CALLBACK(onCloseClick), ccd,
                         (GClosureNotify)g_free, G_CONNECT_DEFAULT);
 
+  // revealer for the closeBtn
   GtkWidget *revealer = gtk_revealer_new();
   gtk_revealer_set_transition_type(GTK_REVEALER(revealer),
                                    GTK_REVEALER_TRANSITION_TYPE_SLIDE_LEFT);
@@ -344,12 +353,14 @@ GtkWidget *makeTabRow(AppState *state, int index) {
   gtk_widget_set_halign(revealer, GTK_ALIGN_END);
   gtk_widget_set_valign(revealer, GTK_ALIGN_CENTER);
 
+  // basically the parent of all rows
   GtkWidget *overlay = gtk_overlay_new();
   gtk_overlay_set_child(GTK_OVERLAY(overlay), row);
   gtk_overlay_add_overlay(GTK_OVERLAY(overlay), revealer);
   gtk_overlay_set_measure_overlay(GTK_OVERLAY(overlay), revealer, FALSE);
   gtk_overlay_set_clip_overlay(GTK_OVERLAY(overlay), revealer, FALSE);
 
+  // check mouse hover inside row
   GtkEventController *hoverctrl = gtk_event_controller_motion_new();
   g_signal_connect(hoverctrl, "motion", G_CALLBACK(onRowEnter), revealer);
   g_signal_connect(hoverctrl, "leave", G_CALLBACK(onRowLeave), revealer);
@@ -357,13 +368,12 @@ GtkWidget *makeTabRow(AppState *state, int index) {
 
   // trigger click on row area
   GtkGesture *click = gtk_gesture_click_new();
-  // to HEAP!
+  // sent tab data to the clicked tab
   g_signal_connect_data(click, "pressed", G_CALLBACK(onTabClick), tab,
                         (GClosureNotify)g_free, G_CONNECT_DEFAULT);
   gtk_widget_add_controller(row, GTK_EVENT_CONTROLLER(click));
-  // cursor show hand icon
   gtk_revealer_set_child(GTK_REVEALER(rowRevealer), overlay);
-
+  // set rowRevealer custom context to be passed
   g_object_set_data(G_OBJECT(rowRevealer), "app-state", state);
   tab->tabRow = rowRevealer;
   return rowRevealer;
@@ -382,20 +392,19 @@ static void afterSaveSwitch(GObject *wv, GAsyncResult *result,
   int targetTabId = d->targetTabId;
   g_free(d);
 
-  // 1. SAFELY EXTRACT SCROLL DATA IF IT EXISTS
+  // SAFELY EXTRACT SCROLL DATA IF IT EXISTS
   // Use a GError pointer so WebKit doesn't crash silently if JS fails
   GError *error = NULL;
+  // get js scan that we do in switchTab
   JSCValue *value = webkit_web_view_evaluate_javascript_finish(
       WEBKIT_WEB_VIEW(wv), result, &error);
 
-  if (error) {
-    // Clear the error handle silently; we know it's just a blank page or a
-    // loading state
+  // Clear the error handle silently; we know it's just a blank page or a
+  // loading state
+  if (error)
     g_error_free(error);
-  }
 
-  // Only update scroll statistics if JavaScript successfully returned a real
-  // number
+  // save the scroll position of the tab that we leave
   if (value && jsc_value_is_number(value)) {
     if (state->active >= 0 && state->active < state->tabs->len) {
       Tab *old = g_ptr_array_index(state->tabs, state->active);
@@ -406,11 +415,12 @@ static void afterSaveSwitch(GObject *wv, GAsyncResult *result,
   if (value)
     g_object_unref(value);
 
-  // 2. NOW EXECUTE THE SWITCH REGARDLESS OF JS STATUS
+  // EXECUTE THE SWITCH REGARDLESS OF JS STATUS
   int index = findTableIndexById(state, targetTabId);
   if (index < 0)
     return;
 
+  //  safeguard if index doesnt exist
   if (state->active < 0 || state->active >= state->tabs->len)
     state->active = 0;
 
@@ -435,6 +445,7 @@ static void afterSaveSwitch(GObject *wv, GAsyncResult *result,
     gtk_label_set_text(tab->tabLabel, "New Tab");
   }
 
+  // TODO: make this actually work
   if (state->searchBar) {
     UriBarData *ubd =
         g_object_get_data(G_OBJECT(state->searchBar), "uri-bar-data");
@@ -457,8 +468,9 @@ void switchTab(AppState *state, int index) {
   d->state = state;
   d->targetTabId = targetTab->id;
 
-  // Run javascript evaluation layout tasks. If it fails on about:blank,
-  // afterSaveSwitch handles the error gracefully and still switches tabs!
+  // Run javascript evaluation layout tasks asynchronously. If it fails on
+  // about:blank, afterSaveSwitch handles the error gracefully and still
+  // switches tabs!
   webkit_web_view_evaluate_javascript(WEBKIT_WEB_VIEW(state->webView),
                                       "window.scrollY", -1, NULL, NULL, NULL,
                                       afterSaveSwitch, d);
