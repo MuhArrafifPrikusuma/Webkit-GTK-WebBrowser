@@ -23,11 +23,11 @@ void onTitleChange(WebKitWebView *wv, GParamSpec *ps, gpointer userData) {
   const char *title = webkit_web_view_get_title(wv);
   Tab *tab = g_ptr_array_index(state->tabs, state->active);
   if (!title)
-    tab->title = g_strdup("New Tab");
+    title = g_strdup("New Tab");
 
+  // free up tab
   g_free(tab->title);
   tab->title = g_strdup(title);
-  tab->garbage = TRUE;
   gtk_label_set_text(tab->tabLabel, title);
 
   saveToDisk(tab);
@@ -40,7 +40,7 @@ void onLoadChange(WebKitWebView *wv, WebKitLoadEvent event, gpointer userData) {
     return;
 
   Tab *tab = g_ptr_array_index(state->tabs, state->active);
-  if (tab->scrollY <= 0)
+  if (tab->scrollY <= 0) // no saved position, nothing to restore
     return;
 
   // build javascript string to dynamically with the saved scrollY value on that

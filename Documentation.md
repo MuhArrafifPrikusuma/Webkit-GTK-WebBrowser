@@ -116,3 +116,77 @@
     void addNewTab(AppState *state, const char *uri);
 
   addNewTab and immediately switch to it
+
+## webkit.c
+
+  this handle webkit rendering and properties like tab uri, titles, and scroll position
+
+### Functions
+
+    void onUriChange(WebKitWebView *wv, GParamSpec *ps, gpointer userData);
+
+  changes the uri everytime the webview navigates anywhere
+
+    void onTitleChange(WebKitWebView *wv, GParamSpec *ps, gpointer userData);
+
+  changed the title and set a new label everytime webview navigates anywhere
+
+    void onLoadChange(WebKitWebView *wv, WebKitLoadEvent event, gpointer userData);
+
+  load scroll position
+
+## sidebar.c
+
+  detect mouse movements to collapse or reveal siderbar
+
+### Functions
+
+    void onMouseMotion(GtkEventControllerMotion *motion, double x, double y, gpointer userData);
+
+  if mouse hovering on 20px at the very left of the browser it reveal the sidebar and will close if cursor is 10px outside the sidebar
+
+    void onMouseLeave(GtkEventControllerMotion *motion, gpointer userData);
+
+  if mouse is not inside those 20px or inside sidebar, the sidebar will collapse
+
+    void onNewTab(GtkButton *btn, gpointer userData);
+
+  just a wrapper for addNewTab();
+
+## toolbar.c
+
+  handle tools on the toolbar like back, forward, refresh, search, and later we will implement settings and maybe adblock? maybe even js toggle if im not lazy
+
+### Functions
+
+    static void onBack(GtkButton *btn, gpointer userData);
+
+  navigate to previous page, if there is no previous page then do nothing
+
+    static void onForward(GtkButton *btn, gpointer userData);
+
+  navigate to the next page
+
+    static void onRefresh(GtkButton *btn, gpointer userData);
+
+  refresh page
+
+    GtkWidget *makeToolbar(AppState *state);
+
+  make tool bar widget with back, forward, refresh, search and soon settings
+
+## search.c
+
+  handle search widget and logic (merge the logic with spotlight search searching logic later);
+
+### Functions
+
+    static gboolean isUri(const char *text);
+
+  check whether it's a uri or not by checking special uri characters
+
+    static void navigate(AppState *state, const char *text);
+
+  navigate to the uri that the user has typed and also initiate isUri checking to determine whether it should navigate to user input as a uri or just google search
+
+    static void onUriActive(GtkEntry *entry, gpointer userData);
