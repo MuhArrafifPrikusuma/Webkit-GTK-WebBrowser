@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 
+// determine whether is uri or not
 static gboolean isUri(const char *text) {
   if (strstr(text, "://"))
     return TRUE;
@@ -20,23 +21,26 @@ static gboolean isUri(const char *text) {
   return FALSE;
 }
 
+// execute and redirect to user destination depending on whether it's a uri or a
+// search
 static void navigate(AppState *state, const char *text) {
   if (!text || *text == '\0')
     return;
 
+  // copies uri from text to *uri
   char *uri;
-  if (isUri(text)) {
-    if (strstr(text, "://")) {
-      uri = g_strdup(text);
-    } else {
-      uri = g_strdup_printf("https://");
-    }
+  if (g_str_has_prefix(text, "localhost")) {
+    uri = g_strdup_printf("http://%s", text);
+  } else if (isUri(text)) {
+    uri = strstr(text, "://") ? g_strdup(text)
+                              : g_strdup_printf("https://%s", text);
   } else if (g_strcmp0(text, "about:blank") == 0) {
     uri = g_strdup(text);
   } else {
-    char *encode = g_uri_escape_string(text, NULL, FALSE);
-    uri = g_strdup_printf("https://google.com/search?q=%s", encode);
-    g_free(encode);
+    // remove unsafe ascii characters such as space
+    char *encoded = g_uri_escape_string(text, NULL, TRUE);
+    uri = g_strdup_printf("https://search.google.com/search?q=%s", encoded);
+    g_free(encoded);
   }
   webkit_web_view_load_uri(WEBKIT_WEB_VIEW(state->webView), uri);
   g_free(uri);
@@ -46,7 +50,7 @@ static void onUriActive(GtkEntry *entry, gpointer userData) {
   AppState *state = userData;
   const char *text = gtk_editable_get_text(GTK_EDITABLE(entry));
   navigate(state, text);
-
+  // focus all keystore back to webView
   gtk_widget_grab_focus(state->webView);
 }
 

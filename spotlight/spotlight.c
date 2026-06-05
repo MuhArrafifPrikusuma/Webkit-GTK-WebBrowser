@@ -27,13 +27,16 @@ static void navigateFromSpotlight(AppState *state, const char *text,
     return;
 
   char *uri;
-  if (isUri(text)) {
+  if (g_str_has_prefix(text, "localhost")) {
+    uri = g_strdup_printf("http://%s", text);
+  } else if (isUri(text)) {
     uri = strstr(text, "://") ? g_strdup(text)
                               : g_strdup_printf("https://%s", text);
   } else if (g_strcmp0(text, "about:blank") == 0) {
     uri = g_strdup(text);
   } else {
-    char *encoded = g_uri_escape_string(text, NULL, FALSE);
+    // remove unsafe ascii char such as spaces to prevent invalid uri
+    char *encoded = g_uri_escape_string(text, NULL, TRUE);
     uri = g_strdup_printf("https://search.google.com/search?q=%s", encoded);
     g_free(encoded);
   }
