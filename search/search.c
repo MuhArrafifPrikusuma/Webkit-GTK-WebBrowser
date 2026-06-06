@@ -39,7 +39,7 @@ static void navigate(AppState *state, const char *text) {
   } else {
     // remove unsafe ascii characters such as space
     char *encoded = g_uri_escape_string(text, NULL, TRUE);
-    uri = g_strdup_printf("https://search.google.com/search?q=%s", encoded);
+    uri = g_strdup_printf("https://www.google.com/search?q=%s", encoded);
     g_free(encoded);
   }
   webkit_web_view_load_uri(WEBKIT_WEB_VIEW(state->webView), uri);
@@ -54,6 +54,7 @@ static void onUriActive(GtkEntry *entry, gpointer userData) {
   gtk_widget_grab_focus(state->webView);
 }
 
+// TODO: make it so it will update on every tab switch too
 static void onSyncUri(WebKitWebView *wv, GParamSpec *ps, gpointer userData) {
   UriBarData *d = userData;
   const char *uri = webkit_web_view_get_uri(wv);
@@ -63,11 +64,13 @@ static void onSyncUri(WebKitWebView *wv, GParamSpec *ps, gpointer userData) {
     gtk_editable_set_text(GTK_EDITABLE(d->entry), uri);
 }
 
+// focus on entry field
 static void onFocus(GtkEventControllerFocus *focus, gpointer userData) {
   GtkWidget *entry = GTK_WIDGET(userData);
   gtk_editable_select_region(GTK_EDITABLE(entry), 0, -1);
 }
 
+// TODO: also change on tab switch and from spotlight
 void syncSearch(UriBarData *d, const char *uri) {
   if (!uri)
     return;
@@ -76,6 +79,7 @@ void syncSearch(UriBarData *d, const char *uri) {
 }
 
 GtkWidget *makeUriSearch(AppState *state) {
+  // crete an entry widget for user to input text in
   GtkWidget *uriEntry = gtk_entry_new();
   gtk_widget_add_css_class(uriEntry, "uri-bar");
   gtk_entry_set_placeholder_text(GTK_ENTRY(uriEntry), "🔎 Search");
@@ -88,7 +92,10 @@ GtkWidget *makeUriSearch(AppState *state) {
   g_signal_connect(focusCtrl, "enter", G_CALLBACK(onFocus), uriEntry);
   gtk_widget_add_controller(uriEntry, focusCtrl);
 
+  // pass state->webView to change page uri and d->entry for uri bar text
   UriBarData *d = g_new(UriBarData, 1);
+  // FIX: make the actual uri and displayed uri the same and trigger uri sync
+  // every tab switch
   d->state = state;
   d->entry = uriEntry;
   g_signal_connect(state->webView, "notify::uri", G_CALLBACK(onSyncUri), d);
