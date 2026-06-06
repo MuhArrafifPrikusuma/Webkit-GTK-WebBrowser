@@ -37,7 +37,7 @@ static void navigateFromSpotlight(AppState *state, const char *text,
   } else {
     // remove unsafe ascii char such as spaces to prevent invalid uri
     char *encoded = g_uri_escape_string(text, NULL, TRUE);
-    uri = g_strdup_printf("https://search.google.com/search?q=%s", encoded);
+    uri = g_strdup_printf("https://www.google.com/search?q=%s", encoded);
     g_free(encoded);
   }
   webkit_web_view_load_uri(WEBKIT_WEB_VIEW(state->webView), uri);
@@ -51,6 +51,7 @@ typedef struct {
   GtkWidget *spotlight;
 } SpotlightData;
 
+// take text entry and pass it to navigate
 static void onActivate(GtkEntry *entry, gpointer userData) {
   SpotlightData *d = userData;
   const char *text = gtk_editable_get_text(GTK_EDITABLE(entry));
@@ -60,10 +61,12 @@ static void onActivate(GtkEntry *entry, gpointer userData) {
   gtk_editable_set_text(GTK_EDITABLE(entry), "");
 }
 
+// reveal or hide spotlight based on key stroke
 static gboolean onSpotlightKey(GtkEventControllerKey *key, guint keyvalue,
                                guint keycode, GdkModifierType state,
                                gpointer userData) {
 
+  // hide on escape
   if (keyvalue == GDK_KEY_Escape) {
     GtkWidget *spotlight = GTK_WIDGET(userData);
     hideSpotlight(spotlight);
@@ -76,6 +79,7 @@ static gboolean onSpotlightKey(GtkEventControllerKey *key, guint keyvalue,
   return FALSE;
 }
 
+// click outside the search box will also hide it
 static void onNotCardClick(GtkGestureClick *gesture, int nPress, double x,
                            double y, gpointer userData) {
   GtkWidget *spotlight = GTK_WIDGET(userData);
@@ -85,12 +89,14 @@ static void onNotCardClick(GtkGestureClick *gesture, int nPress, double x,
     gtk_editable_set_text(GTK_EDITABLE(entry), "");
 }
 
+// claim the event if user click on the search box
 static void onCardClick(GtkGestureClick *gesture, int nPress, double x,
                         double y, gpointer userData) {
   gtk_gesture_set_state(GTK_GESTURE(gesture), GTK_EVENT_SEQUENCE_CLAIMED);
 }
 
 GtkWidget *makeSpotlight(AppState *state) {
+  // basically anything outside of the box
   GtkWidget *notCard = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
   gtk_widget_add_css_class(notCard, "spotlight-background");
   gtk_widget_set_hexpand(notCard, TRUE);
@@ -98,11 +104,13 @@ GtkWidget *makeSpotlight(AppState *state) {
 
   gtk_widget_set_visible(notCard, FALSE);
 
+  // take up the space on top to put card right in the middle
   GtkWidget *spacerTop = gtk_label_new(NULL);
   gtk_widget_set_vexpand(spacerTop, TRUE);
   gtk_widget_set_hexpand(spacerTop, TRUE);
   gtk_box_append(GTK_BOX(notCard), spacerTop);
 
+  // now it's in the middle 🥳
   GtkWidget *card = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
   gtk_widget_add_css_class(card, "spotlight-card");
   gtk_widget_set_halign(card, GTK_ALIGN_CENTER);
@@ -111,11 +119,13 @@ GtkWidget *makeSpotlight(AppState *state) {
 
   gtk_box_append(GTK_BOX(notCard), card);
 
+  // another space at the bottom
   GtkWidget *spacerBottom = gtk_label_new(NULL);
   gtk_widget_set_vexpand(spacerBottom, TRUE);
   gtk_widget_set_hexpand(spacerBottom, FALSE);
   gtk_box_append(GTK_BOX(notCard), spacerBottom);
 
+  // create search box and append icon to the left side
   GtkWidget *searchBox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
 
   GtkWidget *icon = gtk_image_new_from_icon_name("system-search-symbolic");
@@ -123,8 +133,8 @@ GtkWidget *makeSpotlight(AppState *state) {
   gtk_widget_add_css_class(icon, "spotlight-icon");
   gtk_box_append(GTK_BOX(searchBox), icon);
 
+  // this is where the input is
   GtkWidget *entry = gtk_entry_new();
-  gtk_widget_set_name(entry, "spotlightentry");
   gtk_widget_add_css_class(entry, "spotlight-entry");
   gtk_entry_set_placeholder_text(GTK_ENTRY(entry),
                                  "Search or enter address...");
@@ -132,14 +142,14 @@ GtkWidget *makeSpotlight(AppState *state) {
 
   gtk_entry_set_has_frame(GTK_ENTRY(entry), FALSE);
 
-  gtk_widget_set_name(entry, "spotlight-entry");
-
   gtk_box_append(GTK_BOX(searchBox), entry);
   gtk_box_append(GTK_BOX(card), searchBox);
 
+  // save state and entry to call later
   g_object_set_data(G_OBJECT(notCard), "entry", entry);
   g_object_set_data(G_OBJECT(notCard), "state", state);
 
+  // handle CALLBACKS
   GtkEventController *keyCtrl = gtk_event_controller_key_new();
   g_signal_connect(keyCtrl, "key-pressed", G_CALLBACK(onSpotlightKey), notCard);
   gtk_widget_add_controller(entry, keyCtrl);
@@ -162,16 +172,20 @@ GtkWidget *makeSpotlight(AppState *state) {
   return notCard;
 }
 
+// show spotlight box and blur the background
 void showSpotlight(GtkWidget *spotlight) {
   AppState *state = g_object_get_data(G_OBJECT(spotlight), "state");
   if (state && state->webView) {
+    // blur background
     webkit_web_view_evaluate_javascript(
         WEBKIT_WEB_VIEW(state->webView),
         "document.documentElement.style.transition = 'filter 0.18s ease';"
         "document.documentElement.style.filter = 'blur(6px) brightness(0.7)';",
         -1, NULL, NULL, NULL, NULL, NULL);
   }
+  // set widget to visible
   gtk_widget_set_visible(spotlight, true);
+  // get spotlight entry data and grab the focus to entry
   GtkWidget *entry = g_object_get_data(G_OBJECT(spotlight), "entry");
   if (entry)
     gtk_widget_grab_focus(entry);
@@ -180,6 +194,7 @@ void showSpotlight(GtkWidget *spotlight) {
 void hideSpotlight(GtkWidget *spotlight) {
   AppState *state = g_object_get_data(G_OBJECT(spotlight), "state");
   if (state && state->webView) {
+    // remove blur
     webkit_web_view_evaluate_javascript(
         WEBKIT_WEB_VIEW(state->webView),
         "document.documentElement.style.filter = '';"

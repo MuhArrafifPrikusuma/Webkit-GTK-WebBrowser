@@ -190,3 +190,50 @@
   navigate to the uri that the user has typed and also initiate isUri checking to determine whether it should navigate to user input as a uri or just google search
 
     static void onUriActive(GtkEntry *entry, gpointer userData);
+
+  after data is passed to navigate gtk will then change the focus back to webview
+
+    static void onSyncUri(WebKitWebView *wv, GParamSpec *ps, gpointer userData);
+
+  supposed to display current webpage uri but it's still doesn't support tab switching yet
+
+    static void onFocus(GtkEventControllerFocus *focus, gpointer userData);
+
+  move focus to the uri bar
+
+    void syncSearch(UriBarData *d, const char *uri);
+
+  sync the text displayed with the current uri. still need to fix the fact that it will only do this when it was typed directly in the search bar and not going to automatically take a page uri every time it gets into a new page
+
+    GtkWidget *makeUriSearch(AppState *state);
+
+  create a box to input uri or search for something 
+
+    static void onActivate(GtkEntry *entry, gpointer userData);
+
+  take text entry and pass it to navigate 
+
+## spotlight.c
+
+  handle spotlight search that pretty much work like search but Kooler
+
+### Functions
+
+    static gboolean onSpotlightKey(GtkEventControllerKey *key, guint keyvalue, guint keycode, GdkModifierType state, gpointer userData);
+
+  close spotlight on escape
+
+    static void onNotCardClick(GtkGestureClick *gesture, int nPress, double x, double y, gpointer userData);
+
+  close if there is any click outside of the box
+
+    GtkWidget *makeSpotlight(AppState *state);
+
+  well this one i quite obvious isn't it?
+
+    void showSpotlight(GtkWidget *spotlight);
+
+  blur background and set spotlight box to visible and take the focus to entry immediately
+
+    
+    
