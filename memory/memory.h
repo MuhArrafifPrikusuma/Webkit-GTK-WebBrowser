@@ -10,10 +10,11 @@ void configureWebkit(AppState *state);
 
 void reclaimMemory(AppState *state);
 
-void startMemoryWatchdog(AppState *state, GtkWidget *overlay);
+void startMemoryWatchdog(AppState *state);
 
 gulong getResidentMemoryKb(void);
 
-void destroyOldViewer(GtkWidget *overlay, AppState *state);
+// void destroyOldViewer(GtkWidget *overlay, AppState *state);
 
+void enforeVirtMemoryCap();
 #endif // !MEMORY_H
