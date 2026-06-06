@@ -156,13 +156,16 @@ static void activate(GtkApplication *app, gpointer userData) {
   // remove when spotlight is implemented
   addNewTab(state, "about:blank");
 
-  startMemoryWatchdog(state, overlay);
+  startMemoryWatchdog(state);
 
   // set overlay as window content and make the window visible
   gtk_window_set_child(GTK_WINDOW(window), overlay);
   gtk_window_present(GTK_WINDOW(window));
 }
 int main(int argc, char **argv) {
+
+  gtk_init();
+
   GtkApplication *app;
   int status;
   app = gtk_application_new("org.webview.app", G_APPLICATION_NON_UNIQUE);

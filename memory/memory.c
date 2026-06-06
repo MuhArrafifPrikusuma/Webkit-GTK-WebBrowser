@@ -9,8 +9,10 @@
 #include "webkit/WebKitSettings.h"
 #include "webkit/WebKitUserContentManager.h"
 #include <dirent.h>
+#include <malloc.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/resource.h>
 #include <time.h>
 #include <unistd.h>
 #include <webkit/webkit.h>
@@ -18,7 +20,7 @@
 // how often watchdog check memory
 #define WATCHDOG_INTERVAL_MS 50000
 
-#define HIGH_WATERMARK_KB (250 * 1024)
+#define HIGH_WATERMARK_KB (400 * 1024)
 
 // read rss of a specific process id
 static gulong getPidRssKb(pid_t pid) {
@@ -82,7 +84,20 @@ gulong totalRssKb(void) {
 
 gulong getResidentMemoryKb(void) { return getPidRssKb(getpid()); }
 
+// WARNING: Don't use this it might crash
+// void enforeVirtMemoryCap() {
+//   struct rlimit limit;
+//   gulong max = 1500000000;
+//
+//   limit.rlim_cur = max;
+//   limit.rlim_max = max;
+//
+//   if (setrlimit(RLIMIT_AS, &limit) != 0)
+//     perror("failed to bind virtual memory to it's limit");
+// }
+
 void configureWebkit(AppState *state) {
+
   WebKitWebContext *ctx = webkit_web_context_get_default();
 
   webkit_web_context_set_cache_model(ctx, WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
@@ -116,47 +131,48 @@ static gboolean burnGarbage(gpointer userData) {
 }
 
 // FIX: this crashes everything so fix this bullshit before actually using it
-void destroyOldViewer(GtkWidget *container, AppState *state) {
-  if (!state || state->webView)
-    return;
-
-  WebKitWebView *oldView = WEBKIT_WEB_VIEW(state->webView);
-
-  g_signal_handlers_disconnect_by_data(GTK_WIDGET(oldView), state);
-
-  WebKitSettings *settings = webkit_web_view_get_settings(oldView);
-  WebKitNetworkSession *network = webkit_web_view_get_network_session(oldView);
-  WebKitUserContentManager *cManager =
-      webkit_web_view_get_user_content_manager(oldView);
-
-  const char *currentUri = webkit_web_view_get_uri(oldView);
-  char *savedUri = currentUri ? g_strdup(currentUri) : NULL;
-
-  WebKitWebView *newView = WEBKIT_WEB_VIEW(g_object_new(
-      WEBKIT_TYPE_WEB_VIEW, "settings", settings, "network-session", network,
-      "user-content-manager", cManager, NULL));
-
-  gtk_widget_set_hexpand(GTK_WIDGET(newView), TRUE);
-  gtk_widget_set_vexpand(GTK_WIDGET(newView), TRUE);
-
-  gtk_overlay_set_child(GTK_OVERLAY(container), GTK_WIDGET(newView));
-
-  state->webView = GTK_WIDGET(newView);
-
-  g_signal_connect(state->webView, "notify::uri", G_CALLBACK(onUriChange),
-                   state);
-  g_signal_connect(state->webView, "notify::title", G_CALLBACK(onTitleChange),
-                   state);
-  g_signal_connect(state->webView, "load-changed", G_CALLBACK(onLoadChange),
-                   state);
-
-  if (savedUri && g_strcmp0(savedUri, "about:blank") == 0)
-    webkit_web_view_load_uri(WEBKIT_WEB_VIEW(state->webView), savedUri);
-
-  g_free(savedUri);
-
-  g_print("[memory] killed old webView and replaced it Successfully");
-}
+// void destroyOldViewer(GtkWidget *container, AppState *state) {
+//  if (!state || state->webView)
+//    return;
+//
+//  WebKitWebView *oldView = WEBKIT_WEB_VIEW(state->webView);
+//
+//  g_signal_handlers_disconnect_by_data(GTK_WIDGET(oldView), state);
+//
+//  WebKitSettings *settings = webkit_web_view_get_settings(oldView);
+//  WebKitNetworkSession *network =
+//  webkit_web_view_get_network_session(oldView); WebKitUserContentManager
+//  *cManager =
+//      webkit_web_view_get_user_content_manager(oldView);
+//
+//  const char *currentUri = webkit_web_view_get_uri(oldView);
+//  char *savedUri = currentUri ? g_strdup(currentUri) : NULL;
+//
+//  WebKitWebView *newView = WEBKIT_WEB_VIEW(g_object_new(
+//      WEBKIT_TYPE_WEB_VIEW, "settings", settings, "network-session", network,
+//      "user-content-manager", cManager, NULL));
+//
+//  gtk_widget_set_hexpand(GTK_WIDGET(newView), TRUE);
+//  gtk_widget_set_vexpand(GTK_WIDGET(newView), TRUE);
+//
+//  gtk_overlay_set_child(GTK_OVERLAY(container), GTK_WIDGET(newView));
+//
+//  state->webView = GTK_WIDGET(newView);
+//
+//  g_signal_connect(state->webView, "notify::uri", G_CALLBACK(onUriChange),
+//                   state);
+//  g_signal_connect(state->webView, "notify::title", G_CALLBACK(onTitleChange),
+//                   state);
+//  g_signal_connect(state->webView, "load-changed", G_CALLBACK(onLoadChange),
+//                   state);
+//
+//  if (savedUri && g_strcmp0(savedUri, "about:blank") == 0)
+//    webkit_web_view_load_uri(WEBKIT_WEB_VIEW(state->webView), savedUri);
+//
+//  g_free(savedUri);
+//
+//  g_print("[memory] killed old webView and replaced it Successfully");
+//}
 
 static void onCacheCleared(GObject *source, GAsyncResult *rs,
                            gpointer userData) {
@@ -167,6 +183,7 @@ static void onCacheCleared(GObject *source, GAsyncResult *rs,
     g_warning("[memory] Failed to destroy cache: %s", error->message);
     return;
   }
+  malloc_trim(0);
   g_print("[memory] Webkit cache cleared -- RSS now %.1f MB\n",
           getResidentMemoryKb() / 1024.0);
 }
@@ -189,7 +206,8 @@ void reclaimMemory(AppState *state) {
   WebKitWebsiteDataTypes types =
       WEBKIT_WEBSITE_DATA_MEMORY_CACHE | WEBKIT_WEBSITE_DATA_DISK_CACHE;
 
-  webkit_website_data_manager_clear(manager, types, 0, NULL, NULL, NULL);
+  webkit_website_data_manager_clear(manager, types, 0, NULL, onCacheCleared,
+                                    NULL);
 }
 
 typedef struct {
@@ -210,20 +228,19 @@ static gboolean watchdogTick(gpointer userData) {
           "%.1lf MB\n",
           rssKb / 1024.0, totalRss / 1024.0, d->peakRssKb / 1024.0);
 
-  if (rssKb > HIGH_WATERMARK_KB) {
+  if (totalRss > HIGH_WATERMARK_KB) {
     g_print("[memory] high watermark exceeded (%.1f MB) -- WatchDog GO KILL "
             "EMMM!!\n",
             totalRss / 1024.0);
     reclaimMemory(d->state);
-    destroyOldViewer(d->overlay, d->state);
+    //    destroyOldViewer(d->overlay, d->state);
   }
   return G_SOURCE_CONTINUE;
 }
 
-void startMemoryWatchdog(AppState *state, GtkWidget *overlay) {
+void startMemoryWatchdog(AppState *state) {
   WatchdogIsWatching *d = g_new0(WatchdogIsWatching, 1);
   d->state = state;
-  d->overlay = overlay;
   d->peakRssKb = 0;
 
   g_timeout_add(WATCHDOG_INTERVAL_MS, watchdogTick, d);
